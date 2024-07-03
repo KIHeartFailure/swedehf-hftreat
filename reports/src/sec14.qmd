@@ -1,0 +1,95 @@
+
+```{r}
+#| label: sec14-1
+#| cache: true
+#| cache.comments: false
+
+rsdatatmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(dapabiso = ATC_sos_lm_sglt2i == "A10BK01" & ATC_sos_lm_bbl == "C07AB07" & sos_lm_mra == "Yes")
+
+tab <- rsdatatmp %>%
+  count(dapabiso) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n == 0 ~ "-",
+      n < 10 ~ "<10",
+      TRUE ~ np
+    )
+  ) %>%
+  filter(dapabiso)
+```
+
+The number (%) of patients 2021-2023 taking dapagliflozin, bisoprolol and a MRA concomitantly is `r tab %>% pull(np)`. 
+
+```{r}
+#| label: tab-sec14-2
+#| cache: true
+#| cache.comments: false
+#| dependson: sec14-1
+#| tbl-cap: "Secondary objective 14 - Dosage by ATC for patients taking dapagliflozin, bisoprolol and MRA 2021-2023"
+#| tbl-pos: "H"
+
+sec14func <- function(medvar) {
+  tab <- rsdatatmp %>%
+    filter(!is.na(!!sym(paste0("dose_sos_lm_", medvar)))) %>%
+    group_by(!!sym(paste0("ATC_sos_lm_", medvar))) %>%
+    reframe(
+      med = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.5)),
+      q1 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.25)),
+      q3 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.75)),
+      mean = mean(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      sd = sd(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      min = min(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      max = max(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      n = n()
+    ) %>%
+    mutate(
+      out = paste0(n, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
+      out = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ out
+      ),
+      var = medvar
+    ) %>%
+    rename(
+      atcvar = !!sym(paste0("ATC_sos_lm_", medvar))
+    ) %>%
+    select(var, atcvar, out) %>%
+    ungroup()
+}
+
+medvars <- c("bbl", "mra")
+
+tab <- lapply(medvars,
+  FUN = sec14func
+)
+tab <- bind_rows(tab)
+
+tab <- tab %>%
+  filter(!(var == "bbl" & atcvar %in% c("C07AG02", "C07AB02")))
+
+tab <- tab %>%
+  mutate(
+    var = factor(case_when(
+      var == "bbl" ~ 1,
+      var == "mra" ~ 2,
+    ), levels = 1:3, labels = c("Beta-blocker", "MRA", "SGLT2i"))
+  )
+
+colnames(tab) <- c("Medication", "ATC", "n, median [minimum, q1, q3, maximum], mean (standard deviation)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = T
+)
+```

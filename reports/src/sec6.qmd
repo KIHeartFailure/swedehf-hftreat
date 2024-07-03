@@ -1,0 +1,251 @@
+
+```{r}
+#| label: tbl-sec6-1
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Secondary objective 6 - n (%) taking Beta-blocker, MRA and SGLT2i 2021-2023"
+#| tbl-pos: "H"
+
+elvars <- names(rsdata)[str_detect(names(rsdata), "_cateli")]
+
+rsdatatmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(smb = factor(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0), levels = 0:1, labels = c("No", "Beta-blocker + MRA + SGLT2i")))
+
+tab <- rsdatatmp %>%
+  count(smb) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n == 0 ~ "-",
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    strata = "Overall",
+    lev = ""
+  ) %>%
+  filter(smb != "No") %>%
+  select(strata, lev, np)
+
+sec6func1 <- function(byvar) {
+  tab <- rsdatatmp %>%
+    filter(!is.na(!!sym(byvar))) %>%
+    group_by(!!sym(byvar)) %>%
+    count(smb) %>%
+    mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+    mutate(
+      np = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ np
+      ),
+      strata = byvar
+    ) %>%
+    filter(smb != "No") %>%
+    rename(lev = !!sym(byvar)) %>%
+    select(strata, lev, np) %>%
+    ungroup()
+}
+
+tabtmp <- lapply(elvars,
+  FUN = sec6func1
+)
+tabtmp <- bind_rows(tabtmp)
+
+tab <- bind_rows(tab, tabtmp)
+
+tab <- tab %>%
+  mutate(
+    # if recoding or categorizing will still get org label
+    var_tmp = str_replace_all(strata, "(_cateli)", "")
+  )
+
+tab <- left_join(tab,
+  metavars %>%
+    select(variable, label, unit),
+  by = c("var_tmp" = "variable")
+) %>%
+  mutate(
+    Variable = coalesce(label, var_tmp),
+    Variable = if_else(!is.na(unit),
+      paste0(Variable, " (", unit, ")"),
+      Variable
+    ),
+    Variable = paste0(Variable, " ", lev),
+    order = 1:n()
+  ) %>%
+  select(Variable, np)
+
+colnames(tab) <- c("Strata", "n (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+tab <- tab %>%
+  mutate(
+    Strata = sanitize_text(Strata),
+    Strata = str_replace_all(Strata, fixed("²"), "\\textsuperscript{2}"),
+    Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+    Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = F
+)
+```
+
+```{r}
+#| label: tbl-sec6-2
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec6-1
+#| tbl-cap: "Secondary objective 6 - Doses by ATC for patients taking Beta-blocker, MRA and SGLT2i 2021-2023"
+#| tbl-pos: "H"
+
+elvars2 <- c(NA, elvars)
+
+sec6func2 <- function(byvar, medvar) {
+  if (is.na(byvar)) {
+    tab <- rsdatatmp %>%
+      filter(!is.na(!!sym(paste0("dose_sos_lm_", medvar))) & smb != "No") %>%
+      group_by(!!sym(paste0("ATC_sos_lm_", medvar))) %>%
+      reframe(
+        med = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.5)),
+        q1 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.25)),
+        q3 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.75)),
+        mean = mean(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        sd = sd(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        min = min(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        max = max(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        n = n()
+      ) %>%
+      mutate(
+        out = paste0(n, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
+        out = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ out
+        ),
+        var = medvar,
+        byvar = "Overall",
+        levvar = ""
+      ) %>%
+      rename(
+        atcvar = !!sym(paste0("ATC_sos_lm_", medvar))
+      ) %>%
+      select(var, atcvar, byvar, levvar, out) %>%
+      ungroup()
+  } else {
+    tab <- rsdatatmp %>%
+      filter(!is.na(!!sym(byvar)) & !is.na(!!sym(paste0("dose_sos_lm_", medvar))) & smb != "No") %>%
+      group_by(!!sym(paste0("ATC_sos_lm_", medvar)), !!sym(byvar)) %>%
+      reframe(
+        med = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.5)),
+        q1 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.25)),
+        q3 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.75)),
+        mean = mean(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        sd = sd(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        min = min(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        max = max(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+        n = n()
+      ) %>%
+      mutate(
+        out = paste0(n, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
+        out = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ out
+        ),
+        var = medvar,
+        byvar = byvar
+      ) %>%
+      rename(
+        atcvar = !!sym(paste0("ATC_sos_lm_", medvar)),
+        levvar = !!sym(byvar)
+      ) %>%
+      select(var, atcvar, byvar, levvar, out) %>%
+      ungroup()
+  }
+}
+
+tabmra <- lapply(elvars2,
+  FUN = sec6func2, medvar = "mra"
+)
+tabmra <- bind_rows(tabmra)
+
+tabbbl <- lapply(elvars2,
+  FUN = sec6func2, medvar = "bbl"
+)
+tabbbl <- bind_rows(tabbbl)
+
+tabsglt2i <- lapply(elvars2,
+  FUN = sec6func2, medvar = "sglt2i"
+)
+tabsglt2i <- bind_rows(tabsglt2i)
+
+taball <- bind_rows(tabbbl, tabmra, tabsglt2i)
+
+taball <- taball %>%
+  mutate(
+    # if recoding or categorizing will still get org label
+    var_tmp = str_replace_all(byvar, "(_cateli)", ""),
+    var = factor(case_when(
+      var == "bbl" ~ 1,
+      var == "mra" ~ 2,
+      var == "sglt2i" ~ 3,
+    ), levels = 1:3, labels = c("Beta-blocker", "MRA", "SGLT2i"))
+  )
+
+taball <- left_join(taball,
+  metavars %>%
+    select(variable, label, unit),
+  by = c("var_tmp" = "variable")
+) %>%
+  mutate(
+    Variable = coalesce(label, var_tmp),
+    Variable = if_else(!is.na(unit),
+      paste0(Variable, " (", unit, ")"),
+      Variable
+    ),
+    Variable = paste0(Variable, " ", levvar),
+    order = 1:n()
+  )
+
+taball <- taball %>%
+  group_by(var) %>%
+  mutate(var = if_else(row_number() == 1, var, NA_character_)) %>%
+  ungroup() %>%
+  group_by(atcvar, byvar) %>%
+  arrange() %>%
+  mutate(atcvar = if_else(row_number() == 1, atcvar, NA_character_)) %>%
+  ungroup() %>%
+  arrange(order) %>%
+  select(var, atcvar, Variable, out)
+
+colnames(taball) <- c("Medication", "ATC", "Strata", "n, median [minimum, q1, q3, maximum], mean (standard deviation)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(taball)
+}
+
+colnames(taball) <- sanitize_text(colnames(taball))
+
+taball <- taball %>%
+  mutate(
+    Strata = sanitize_text(Strata),
+    Strata = str_replace_all(Strata, fixed("²"), "\\textsuperscript{2}"),
+    Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+    Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(taball,
+  escape = FALSE,
+  scale_down = T
+)
+```

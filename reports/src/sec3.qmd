@@ -1,0 +1,206 @@
+```{r}
+#| label: sec3func
+#| cache: true
+#| cache.comments: false
+
+coxvars <- modvars
+coxvars[modvars %in% stratavars] <- paste0("strata(", coxvars[modvars %in% stratavars], ")")
+
+sec3func <- function(data = rsdata, impdata = imprsdata, time, event, eventname, medvar,
+                     novars = NULL) {
+  coxvars <- setdiff(coxvars, novars)
+
+  xvar <- paste0("sos_lmadhere_", medvar, "_cat")
+
+  levs <- levels(data %>% pull(!!sym(xvar)))
+  nlevs <- length(levs)
+
+  nrows <- 3
+  out <- data.frame(matrix(NA, ncol = 2 + nlevs, nrow = nrows))
+  colnames(out) <- c("Outcome", "Model", levs)
+
+  out[1, 1] <- eventname
+
+  ## incidence rate
+  out[1, 2] <- "No events, sum py, events/100py (95% CI)"
+
+  # 1 row - incidence
+  ev <- data %>%
+    group_by(!!sym(xvar)) %>%
+    summarise(
+      ev = sum(!!sym(event) == "Yes"),
+      s = sum(!!sym(time) / 365.25),
+      .groups = "drop"
+    )
+
+  r <- pois.exact(x = ev$ev, pt = ev$s / 100)
+
+  out[1, 3:(nlevs + 2)] <- paste0(
+    ev$ev, ", ",
+    fn(ev$s, dig = 0), ", ",
+    fn(r$rate, dig = 0), " (",
+    fn(r$lower, dig = 0), "-",
+    fn(r$upper, dig = 0), ")"
+  )
+
+
+  ## 2 row - crude regression
+  out[2, 2] <- "Crude Hazard Ratio (95% CI), p-value"
+  mod <- summary(coxph(formula(paste0("Surv(", time, ",", event, "== 'Yes') ~ ", xvar)),
+    data = data
+  ))
+
+  out[2, 3:(nlevs + 2)] <- c(
+    "reference",
+    paste0(
+      fn(mod$conf.int[, "exp(coef)"], dig = 2),
+      " (", fn(mod$conf.int[, "lower .95"], dig = 2),
+      "-", fn(mod$conf.int[, "upper .95"], dig = 2), "), ",
+      fn(mod$coef[, "Pr(>|z|)"], dig = 3, p = TRUE)
+    )
+  )
+
+  ## 3 row - adjusted regression
+  out[3, 2] <- "Adjusted Hazard Ratio (95% CI), p-value"
+  # mod <- summary(pool(with(impdata, coxph(formula(paste0(
+  #  "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
+  # ))))))
+
+  # out[3, 3:(nlevs + 2)] <- c(
+  # "reference",
+  #  paste0(
+  #    fn(exp(mod$estimate[1:(nlevs - 1)]), dig = 2),
+  #    " (", fn(exp(mod$estimate[1:(nlevs - 1)] - global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2),
+  #    "-", fn(exp(mod$estimate[1:(nlevs - 1)] + global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2), "), ",
+  #    fn(mod$p.value[1:(nlevs - 1)], dig = 3, p = TRUE)
+  #  )
+  # )
+
+  return(out)
+}
+
+sec3func_outer <- function(medvar, byvar, lev, byvarname, novars) {
+  if (is.null(byvar)) {
+    data <- rsdata %>%
+      filter(!!sym(paste0("sos_lm_", medvar)) == "Yes" & !is.na(!!sym(paste0("sos_lmadhere_", medvar, "_cat"))) & sos_outtime_death >= 365)
+    # impdata <- mice::filter(imprsdata, rsdata %>%
+    #                           mutate(filt = !!sym(paste0("sos_lm_", medvar)) == "Yes" & !is.na(!!sym(paste0("sos_lmadhere_", medvar, "_cat")))) & sos_outtime_death >= 365) %>%
+    #   pull(filt))
+  } else {
+    novars <- c(byvar, novars)
+
+    data <- rsdata %>% filter(!!sym(byvar) == lev & !!sym(paste0("sos_lm_", medvar)) == "Yes" & !is.na(!!sym(paste0("sos_lmadhere_", medvar, "_cat"))) & sos_outtime_death >= 365)
+    # impdata <- mice::filter(imprsdata, rsdata %>%
+    #                           mutate(filt = !!sym(byvar)) == lev & !!sym(paste0("sos_lm_", medvar)) == "Yes" & !is.na(!!sym(paste0("sos_lmadhere_", medvar, "_cat")))) & sos_outtime_death >= 365) %>%
+    #   pull(filt))
+  }
+
+  out1 <- sec3func(
+    data = data,
+    impdata = impdata,
+    time = outvars$time[1],
+    event = outvars$var[1],
+    eventname = outvars$shortname[1],
+    medvar = medvar,
+    novars = novars
+  )
+  out2 <- sec3func(
+    data = data,
+    impdata = impdata,
+    time = paste0(outvars$time[2], "adhere"),
+    event = paste0(outvars$var[2], "adhere"),
+    eventname = outvars$shortname[2],
+    medvar = medvar,
+    novars = novars
+  )
+  out3 <- sec3func(
+    data = data,
+    impdata = impdata,
+    time = paste0(outvars$time[3], "adhere"),
+    event = paste0(outvars$var[3], "adhere"),
+    eventname = outvars$shortname[3],
+    medvar = medvar,
+    novars = novars
+  )
+  outall <- rbind(out1, out2, out3)
+
+  outall <- outall %>%
+    add_column(
+      Medication = medvar,
+      Strata = c(paste0(byvarname, " ", lev), rep(NA, (nrow(outall) - 1))),
+      .before = 1
+    )
+}
+
+medvars <- c("bbl", "rasiarni", "mra", "sglt2i")
+
+sec3func_outer2 <- function(byvar = NULL, lev = NULL, byvarname, novars = NULL) {
+  out <- lapply(medvars,
+    FUN = sec3func_outer,
+    byvar = byvar, byvarname = byvarname, lev = lev, novars = novars
+  )
+
+  out <- bind_rows(out)
+}
+
+sec3func_outer3 <- function(byvar, byvarname, novars = NULL) {
+  out <- lapply(levels(rsdata %>% pull(!!sym(byvar))),
+    FUN = sec3func_outer2,
+    byvar = byvar, byvarname = byvarname, novars = novars
+  )
+
+  out <- bind_rows(out)
+}
+```
+
+\blandscape
+```{r}
+#| label: tbl-sec3
+#| cache: true
+#| cache.comments: false
+#| dependson: sec3func
+#| tbl-cap: "Association between outcomes and adherence (time starts at one year)"
+
+overall <- sec3func_outer2(byvar = NULL, byvarname = "Overall", novars = NULL)
+
+### OBS!!! MÅSTE FIXA IMPRSDATA SÅ SUBSET!!!!!!
+sos_prevhfh3mo <- sec3func_outer3(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
+
+sos_hospward_3mo <- sec3func_outer3(byvar = "sos_hospward_3mo", byvarname = "HFH", novars = "sos_prevhfh3mo")
+
+age <- sec3func_outer3(byvar = "shf_age_cat", byvarname = "Age")
+
+sex <- sec3func_outer3(byvar = "shf_sex", byvarname = "")
+
+cci <- sec3func_outer3(byvar = "sos_com_charlsonci_cat", byvarname = "CCI")
+
+meds <- sec3func_outer3(byvar = "n_othermeds_cat", byvarname = "Other medications")
+
+outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
+
+outall <- outall %>%
+  mutate(Medication = factor(case_when(
+    Medication == "bbl" ~ 1,
+    Medication == "rasiarni" ~ 2,
+    Medication == "mra" ~ 3,
+    Medication == "sglt2i" ~ 4,
+  ), levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "SGLT2i")))
+
+if (output) {
+  make_one_xlsxsheet(outall)
+}
+
+default_kable(outall,
+  longtable = TRUE,
+  font_size = 4.5
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Abbreviations: py, person-years"
+    ),
+    threeparttable = T
+  )
+```
+\elandscape

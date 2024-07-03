@@ -1,0 +1,164 @@
+
+```{r}
+#| label: primaryfunc
+#| cache: true
+#| cache.comments: false
+
+primaryfunc <- function(data = rsdata, colvar = NULL) {
+  if (is.null(colvar)) {
+    tab <- data %>%
+      filter(!is.na(sos_lm_gdmttype)) %>%
+      group_by(shf_indexyear_cat) %>%
+      count(sos_lm_gdmttype) %>%
+      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      mutate(
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        )
+      ) %>%
+      select(shf_indexyear_cat, sos_lm_gdmttype, np) %>%
+      ungroup() %>%
+      pivot_wider(values_from = np, names_from = shf_indexyear_cat) %>%
+      rename(Medication = sos_lm_gdmttype)
+  } else {
+    tab <- data %>%
+      filter(!is.na(sos_lm_gdmttype) & !is.na(!!sym(colvar))) %>%
+      group_by(shf_indexyear_cat, !!sym(colvar)) %>%
+      count(sos_lm_gdmttype) %>%
+      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      mutate(
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        )
+      ) %>%
+      select(shf_indexyear_cat, sos_lm_gdmttype, np, !!sym(colvar)) %>%
+      ungroup() %>%
+      pivot_wider(values_from = np, names_from = c(!!sym(colvar), shf_indexyear_cat)) %>%
+      rename(Medication = sos_lm_gdmttype)
+
+    colnames(tab) <- str_remove_all(colnames(tab), "_2016-2020|_2021-2023")
+  }
+
+  # excel
+  if (output) {
+    make_one_xlsxsheet(tab)
+  }
+
+  colnames(tab) <- sanitize_text(colnames(tab))
+
+  tabprint <- default_kable(tab,
+    escape = FALSE,
+    scale_down = T
+  ) %>%
+    footnote(
+      footnote_order = c("general", "symbol", "alphabet"),
+      general_title = "",
+      general = c(
+        "Presented with n (%)."
+      )
+    )
+
+  if (!is.null(colvar)) {
+    if (colvar != "shf_indexyear") {
+      nlevs <- nlevels(data %>% pull(!!sym(colvar)))
+      tabprint <- tabprint %>%
+        add_header_above(c(" " = 1, "2016-2020" = nlevs, "2021-2023" = nlevs))
+    }
+  }
+  tabprint
+}
+```
+
+```{r}
+#| label: tbl-primary-year
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective by year"
+#| tbl-pos: "H"
+
+rsdatatmp <- rsdata %>%
+  mutate(shf_indexyear = factor(shf_indexyear))
+primaryfunc(data = rsdatatmp, colvar = "shf_indexyear")
+```
+
+```{r}
+#| label: tbl-primary
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective"
+#| tbl-pos: "H"
+
+primaryfunc()
+```
+
+```{r}
+#| label: tbl-primary-prevhfhf
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective previous HFH within 3 months"
+#| tbl-pos: "H"
+
+primaryfunc(colvar = "sos_prevhfh3mo")
+```
+
+```{r}
+#| label: tbl-primary-hospward
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective area of previous HFH within 3 months"
+#| tbl-pos: "H"
+
+primaryfunc(colvar = "sos_hospward_3mo")
+```
+
+```{r}
+#| label: tbl-primary-age
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective age"
+#| tbl-pos: "H"
+
+primaryfunc(colvar = "shf_age_cat")
+```
+
+```{r}
+#| label: tbl-primary-sex
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective sex"
+#| tbl-pos: "H"
+
+primaryfunc(colvar = "shf_sex")
+```
+
+```{r}
+#| label: tbl-primary-cci
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective CCI"
+#| tbl-pos: "H"
+
+primaryfunc(colvar = "sos_com_charlsonci_cat")
+```
+
+```{r}
+#| label: tbl-primary-meds
+#| cache: true
+#| cache.comments: false
+#| dependson: primaryfunc
+#| tbl-cap: "Primary objective number of other medications"
+#| tbl-pos: "H"
+
+primaryfunc(colvar = "n_othermeds_cat")
+```

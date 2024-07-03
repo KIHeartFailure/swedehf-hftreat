@@ -1,0 +1,108 @@
+
+```{r}
+#| label: tbl-sec2
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Secondary objective 2 - n (%) >= 80% adherence"
+#| tbl-pos: "H"
+
+sec2func <- function(medvar, byvar = NULL, byvarname) {
+  if (is.null(byvar)) {
+    tab <- rsdata %>%
+      filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar))) %>%
+      group_by(sos_lm_gdmt) %>%
+      count(!!sym(medvar)) %>%
+      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      mutate(
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        ),
+        Strata = byvarname,
+        Medication = medvar
+      ) %>%
+      ungroup() %>%
+      filter(!!sym(medvar) == ">=80") %>%
+      select(sos_lm_gdmt, Strata, Medication, np) %>%
+      pivot_wider(values_from = np, names_from = sos_lm_gdmt)
+  } else {
+    tab <- rsdata %>%
+      filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar)) & !is.na(!!sym(byvar))) %>%
+      group_by(sos_lm_gdmt, !!sym(byvar)) %>%
+      count(!!sym(medvar)) %>%
+      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      mutate(
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        ),
+        Strata = paste0(byvarname, " ", !!sym(byvar)),
+        Medication = medvar
+      ) %>%
+      ungroup() %>%
+      filter(!!sym(medvar) == ">=80") %>%
+      select(sos_lm_gdmt, Strata, Medication, np) %>%
+      pivot_wider(values_from = np, names_from = sos_lm_gdmt)
+  }
+}
+
+treatvarsadh <- c("sos_lmadhere_bbl_cat", "sos_lmadhere_rasiarni_cat", "sos_lmadhere_mra_cat", "sos_lmadhere_sglt2i_cat")
+
+sec2func_outer <- function(byvar, byvarname) {
+  out <- lapply(treatvarsadh,
+    FUN = sec2func,
+    byvar = byvar, byvarname = byvarname
+  )
+
+  out <- bind_rows(out)
+}
+
+overall <- sec2func_outer(byvar = NULL, byvarname = "Overall")
+
+sos_prevhfh3mo <- sec2func_outer(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
+
+sos_hospward_3mo <- sec2func_outer(byvar = "sos_hospward_3mo", byvarname = "HFH")
+
+age <- sec2func_outer(byvar = "shf_age_cat", byvarname = "Age")
+
+sex <- sec2func_outer(byvar = "shf_sex", byvarname = "")
+
+cci <- sec2func_outer(byvar = "sos_com_charlsonci_cat", byvarname = "CCI")
+
+meds <- sec2func_outer(byvar = "n_othermeds_cat", byvarname = "Other medications")
+
+taball <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
+
+taball <- taball %>%
+  mutate(
+    # if recoding or categorizing will still get org label
+    Medication = str_remove_all(Medication, "(_cat|sos_lmadhere_)"),
+    Medication = factor(case_when(
+      Medication == "bbl" ~ 1,
+      Medication == "rasiarni" ~ 2,
+      Medication == "mra" ~ 3,
+      Medication == "sglt2i" ~ 4,
+    ), levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "SGLT2i"))
+  )
+
+# excel
+if (output) {
+  make_one_xlsxsheet(taball)
+}
+
+taball <- taball %>%
+  mutate(
+    Strata = sanitize_text(Strata),
+    Strata = str_replace_all(Strata, fixed("²"), "\\textsuperscript{2}"),
+    Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+    Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(taball,
+  escape = FALSE,
+  longtable = T,
+  font_size = 6
+)
+```

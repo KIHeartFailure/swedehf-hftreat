@@ -1,0 +1,22 @@
+
+```{r}
+#| label: sec11
+#| cache: true
+#| cache.comments: false
+
+tab <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(dapabiso = ATC_sos_lm_sglt2i == "A10BK01" & ATC_sos_lm_bbl == "C07AB07") %>%
+  count(dapabiso) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n == 0 ~ "-",
+      n < 10 ~ "<10",
+      TRUE ~ np
+    )
+  ) %>%
+  filter(dapabiso)
+```
+
+The number (%) of patients 2021-2023 taking dapagliflozin and bisoprolol concomitantly is `r tab %>% pull(np)`. 

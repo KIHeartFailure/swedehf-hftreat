@@ -1,0 +1,51 @@
+
+```{r}
+#| label: sec13
+#| cache: true
+#| cache.comments: false
+
+rsdatatmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023" & (ATC_sos_lm_sglt2i != "A10BK01" | sos_lm_sglt2i == "No") & ATC_sos_lm_bbl == "C07AB07" & !is.na(shf_diabetestype) & !is.na(shf_gfrckdepi)) %>%
+  mutate(
+    dosestablebbl_6mo = case_when(
+      is.na(fu_sos_lm_6mo) | fu_sos_lm_6mo == 0 ~ 0,
+      dose_sos_lm_bbl == dosefu_sos_lm_C07AB07_6mo ~ 1,
+      TRUE ~ 0
+    ),
+    dosestablebbl_1yr = case_when(
+      is.na(fu_sos_lm_1yr) | fu_sos_lm_1yr == 0 ~ 0,
+      dose_sos_lm_bbl == dosefu_sos_lm_C07AB07_1yr ~ 1,
+      TRUE ~ 0
+    ),
+    eli = shf_diabetestype != "Type I" & shf_gfrckdepi >= 25
+  )
+
+tab6mo <- rsdatatmp %>%
+  filter(dosestablebbl_6mo == 1) %>%
+  count(eli) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n == 0 ~ "-",
+      n < 10 ~ "<10",
+      TRUE ~ np
+    )
+  ) %>%
+  filter(eli)
+
+tab1yr <- rsdatatmp %>%
+  filter(dosestablebbl_1yr == 1) %>%
+  count(eli) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n == 0 ~ "-",
+      n < 10 ~ "<10",
+      TRUE ~ np
+    )
+  ) %>%
+  filter(eli)
+```
+
+The n (%) of patients on a stable dose of bisoprolol between baseline and 6 months and 1 year respectively
+who are not taking dapagliflozin and who would be eligible (not type I diabetes and eGFR $>=$ 25) (2021-2023) is `r tab6mo %>% pull(np)` and `r tab1yr %>% pull(np)` respectively. 

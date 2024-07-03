@@ -1,0 +1,100 @@
+```{r}
+#| label: sec10
+#| cache: true
+#| cache.comments: false
+
+predictorsfunc <- function(medvar) {
+  impdata <- mice::filter(imprsdata, rsdata %>%
+    mutate(filt = !!sym(paste0("sos_lm_", medvar)) == "Yes" & shf_indexyear_cat == "2021-2023") %>% pull(filt))
+  # adjusted
+  logreg <- with(impdata, glm(
+    formula(paste0(
+      "fu_sos_lm_", medvar, "== 0 ~ ", paste(modvars, collapse = " + ")
+    )),
+    family = binomial(link = "logit")
+  ))
+  logregsum <- summary(pool(logreg))
+
+  logregout <- tibble(
+    var = logregsum$term,
+    or = exp(logregsum$estimate),
+    lci = exp(logregsum$estimate - global_z05 * logregsum$std.error),
+    uci = exp(logregsum$estimate + global_z05 * logregsum$std.error),
+    p = fn(logregsum$p.value, dig = 3, p = TRUE),
+    orci = paste0(fn(or, 1), " (", fn(lci, 2), "-", fn(uci, 2), "), ", p)
+  ) %>%
+    filter(!var %in% c("(Intercept)")) %>%
+    mutate(
+      var = str_replace_all(var, fixed("Yes"), ""),
+      var = str_replace_all(var, "shf_sos_com_", "sos_com_")
+    )
+
+  logregout <- left_join(logregout,
+    metavars %>%
+      select(variable, label),
+    by = c("var" = "variable")
+  ) %>%
+    mutate(
+      var = coalesce(label, var),
+      Variable = case_when(
+        var == "shf_sexMale" ~ "Male vs Female",
+        var == "shf_age_cat>80" ~ "Age (years) >80 vs <70",
+        var == "shf_age_cat70-80" ~ "Age (years) 70-80 vs <70",
+        var == "sos_prevhfh3mo" ~ "Previous HFH within 3 months",
+        var == "shf_followuplocation_catHospital" ~ "Follow-up hospital vs Primary care/Other",
+        var == "shf_ef_catHFmrEF" ~ "HFmrEF vs HFrEF",
+        var == "shf_ef_catHFpEF" ~ "HFpEF vs HFrEF",
+        var == "shf_durationhf>=6" ~ "Duration HF (months) >=6 vs <6",
+        var == "shf_nyha_catIII-IV" ~ "NYHA class III-IV vs I-II",
+        var == "shf_bmi_cat>=30" ~ "BMI (kg/m²) >=30 vs <30",
+        var == "shf_bpsys_cat>=140" ~ "Systolic bloodpressure (mmHg) >=140 vs <140",
+        var == "shf_heartrate_cat>70" ~ "Heart rate (beats/min) >70 vs <=70",
+        var == "shf_gfrckdepi_cat<60" ~ "eGFR (mL/min/1.73 m²) <60 vs >=60",
+        var == "shf_potassium_cat<3.5 (Hypokalemia)" ~ "Hypokalemia vs Normakalemia",
+        var == "shf_potassium_cat>5 (Hyperkalemia)" ~ "Hyperkalemia vs Normakalemia",
+        var == "shf_ntprobnp_cat3rd tertile" ~ "NT-proBNP (pg/ml) 3rd tertile vs 1st tertile",
+        var == "shf_ntprobnp_cat2nd tertile" ~ "NT-proBNP (pg/ml) 2nd tertile vs 1st tertile",
+        var == "scb_famtypeLiving alone" ~ "Living alone vs Cohabitating",
+        var == "scb_educationSecondary school" ~ "Secondary vs Compulsory school",
+        var == "scb_educationUniversity" ~ "University vs Compulsory school",
+        var == "scb_dispincome_cat3rd tertile within year" ~ "Income 3rd tertile vs 1st tertile",
+        var == "scb_dispincome_cat2nd tertile within year" ~ "Income 2nd tertile vs 1st tertile",
+        var == "n_othermeds_cat2-4" ~ "2-4 vs 0-1 other medications",
+        var == "n_othermeds_cat5-6" ~ "5-6 vs 0-1 other medications",
+        var == "n_othermeds_cat7-8" ~ "7-8 vs 0-1 other medications",
+        var == "n_othermeds_cat>=9" ~ ">=9 vs 0-1 other medications",
+        var == "shf_device_catCRT/ICD" ~ "CRT/ICD",
+        TRUE ~ var
+      )
+    ) %>%
+    select(Variable, orci)
+}
+
+tab <- lapply(c("bbl", "rasiarni", "mra", "sglt2i"),
+  FUN = predictorsfunc
+)
+tab <- bind_rows(tab, .id = "id")
+
+tab <- tab %>%
+  mutate(id = factor(id, levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "Sglt2i")))
+
+tab2 <- pivot_wider(tab, values_from = "orci", names_from = "id")
+
+if (output) {
+  make_one_xlsxsheet(tab2)
+}
+tab2 <- tab2 %>%
+  mutate(
+    # so no probs
+    Variable = sanitize_text(Variable),
+    Variable = str_replace_all(Variable, fixed("²"), "\\textsuperscript{2}"),
+    Variable = str_replace_all(Variable, fixed("$>$="), "$\\geq$"),
+    Variable = str_replace_all(Variable, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(tab2,
+  escape = FALSE,
+  scale_down = T
+) %>%
+  add_header_above(c(" " = 1, "Adjusted Odds Ratio (95% CI), p-value" = 4))
+```

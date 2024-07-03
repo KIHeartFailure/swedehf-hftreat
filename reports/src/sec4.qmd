@@ -1,0 +1,40 @@
+```{r}
+#| label: tbl-sec4-1
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Secondary objective 4 - n (%) sequence of initiation of Beta-blocker, RASi/ARNi, MRA and SGLT2i in patients with Triple (2016-2020) and Qudruple (2021-2023) therapy"
+#| tbl-pos: "H"
+
+rsdatatmp <- rsdata %>%
+  filter(!is.na(sos_lm_seq) & (shf_indexyear_cat == "2016-2020" & sos_lm_gdmt == "Tripple" | shf_indexyear_cat == "2021-2023" & sos_lm_gdmt == "Quadruple"))
+
+tab <- rsdatatmp %>%
+  group_by(sos_lm_gdmt) %>%
+  count(sos_lm_seq) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n == 0 ~ "-",
+      n < 10 ~ "<10",
+      TRUE ~ np
+    )
+  ) %>%
+  ungroup() %>%
+  arrange(sos_lm_gdmt, n) %>%
+  select(-n)
+
+colnames(tab) <- c("Therapy", "Initiation sequence", "n (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = F, 
+  font_size = 6
+)
+```

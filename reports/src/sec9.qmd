@@ -1,0 +1,116 @@
+
+```{r}
+#| label: tbl-sec9-1
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Secondary objective 9 - n (%) taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
+#| tbl-pos: "H"
+
+rsdatatmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023" & sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_rasiarni == "Yes")
+
+tab <- rsdatatmp %>%
+  count(sos_lm_ivabradin, sos_lm_loopdiuretics, sos_lm_digoxin, sos_lm_nitrate) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n == 0 ~ "-",
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    sos_lm_ivabradin = if_else(sos_lm_ivabradin == "Yes", "Ivabradin", ""),
+    sos_lm_loopdiuretics = if_else(sos_lm_loopdiuretics == "Yes", "Loopdiuretics", ""),
+    sos_lm_digoxin = if_else(sos_lm_digoxin == "Yes", "Digoxin", ""),
+    sos_lm_nitrate = if_else(sos_lm_nitrate == "Yes", "Nitrate", ""),
+    Medication = paste(sos_lm_ivabradin, sos_lm_loopdiuretics, sos_lm_digoxin, sos_lm_nitrate, sep = " "),
+    Medication = str_squish(Medication),
+    Medication = str_replace_all(Medication, " ", " + "),
+    Medication = if_else(Medication == "", "None", Medication)
+  ) %>%
+  select(Medication, np)
+
+colnames(tab) <- c("Medication", "n (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = F
+)
+```
+
+```{r}
+#| label: tbl-sec9-2
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec9-1
+#| tbl-cap: "Secondary objective 9 - Doses by ATC for patients taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
+#| tbl-pos: "H"
+
+sec9func2 <- function(medvar) {
+  tab <- rsdatatmp %>%
+    filter(!is.na(!!sym(paste0("dose_sos_lm_", medvar)))) %>%
+    group_by(!!sym(paste0("ATC_sos_lm_", medvar))) %>%
+    reframe(
+      med = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.5)),
+      q1 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.25)),
+      q3 = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.75)),
+      mean = mean(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      sd = sd(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      min = min(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      max = max(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
+      n = n()
+    ) %>%
+    mutate(
+      out = paste0(n, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
+      out = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ out
+      ),
+      var = medvar
+    ) %>%
+    rename(
+      atcvar = !!sym(paste0("ATC_sos_lm_", medvar))
+    ) %>%
+    select(var, atcvar, out) %>%
+    ungroup()
+}
+
+medvars <- c("ivabradin", "loopdiuretics", "digoxin", "nitrate")
+
+tab <- lapply(medvars,
+  FUN = sec9func2
+)
+tab <- bind_rows(tab)
+
+tab <- tab %>%
+  mutate(
+    # if recoding or categorizing will still get org label
+    var = factor(case_when(
+      var == "ivabradin" ~ 1,
+      var == "loopdiuretics" ~ 2,
+      var == "digoxin" ~ 3,
+      var == "nitrate" ~ 4,
+    ), levels = 1:4, labels = c("Ivabradin", "Loopdiuretics", "Digoxin", "Nitrate"))
+  )
+
+colnames(tab) <- c("Medication", "ATC", "n, median [minimum, q1, q3, maximum], mean (standard deviation)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = T
+)
+```
