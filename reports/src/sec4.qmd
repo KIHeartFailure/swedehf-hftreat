@@ -2,39 +2,126 @@
 #| label: tbl-sec4-1
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 4 - n (%) sequence of initiation of Beta-blocker, RASi/ARNi, MRA and SGLT2i in patients with Triple (2016-2020) and Qudruple (2021-2023) therapy"
+#| tbl-cap: "Secondary objective 4 - Sequence of initiation of Beta-blocker, RASi/ARNi, MRA and SGLT2i"
 #| tbl-pos: "H"
 
 rsdatatmp <- rsdata %>%
-  filter(!is.na(sos_lm_seq) & (shf_indexyear_cat == "2016-2020" & sos_lm_gdmt == "Tripple" | shf_indexyear_cat == "2021-2023" & sos_lm_gdmt == "Quadruple"))
+  filter(!is.na(sos_lm_seq))
 
-tab <- rsdatatmp %>%
-  group_by(sos_lm_gdmt) %>%
-  count(sos_lm_seq) %>%
-  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+tabn <- rsdatatmp %>%
+  group_by(shf_indexyear_cat, .drop = F) %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  ungroup() %>%
   mutate(
     np = case_when(
-      n == 0 ~ "-",
       n < 10 ~ "<10",
       TRUE ~ np
-    )
+    ),
+    sos_lm_seq = "N",
+    event = ""
   ) %>%
+  select(shf_indexyear_cat, sos_lm_seq, event, np) %>%
+  pivot_wider(values_from = np, names_from = c(shf_indexyear_cat))
+
+tab <- rsdatatmp %>%
+  group_by(shf_indexyear_cat, .drop = F) %>%
+  count(sos_lm_seq, .drop = F) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
   ungroup() %>%
-  arrange(sos_lm_gdmt, n) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    np = if_else(str_detect(sos_lm_seq, "sglt2i") & shf_indexyear_cat == "2016-2020", NA_character_, np),
+    event = "n (%)"
+  ) %>%
   select(-n)
 
-colnames(tab) <- c("Therapy", "Initiation sequence", "n (%)")
+evfunc <- function(event, time, eventname) {
+  # 1 row - incidence
+  ev <- rsdatatmp %>%
+    group_by(shf_indexyear_cat, sos_lm_seq) %>%
+    summarise(
+      n = n(),
+      ev = sum(!!sym(event) == "Yes"),
+      s = sum(!!sym(time) / 365.25),
+      .groups = "drop"
+    ) %>%
+    filter(n > 10)
+
+  r <- pois.exact(x = ev$ev, pt = ev$s / 100)
+
+  out <- tibble(
+    shf_indexyear_cat = ev$shf_indexyear_cat,
+    sos_lm_seq = ev$sos_lm_seq,
+    event = eventname,
+    np =
+      paste0(
+        ev$ev, ", ",
+        fn(r$rate, dig = 0), " (",
+        fn(r$lower, dig = 0), "-",
+        fn(r$upper, dig = 0), ")"
+      )
+  )
+}
+
+out1 <- evfunc(
+  time = outvars$time[1],
+  event = outvars$var[1],
+  eventname = outvars$shortname[1]
+)
+
+out2 <- evfunc(
+  time = outvars$time[2],
+  event = outvars$var[2],
+  eventname = outvars$shortname[2]
+)
+
+out3 <- evfunc(
+  time = outvars$time[3],
+  event = outvars$var[3],
+  eventname = outvars$shortname[3]
+)
+
+outall <- rbind(tab, out1, out2, out3) %>%
+  pivot_wider(values_from = np, names_from = c(event, shf_indexyear_cat)) %>%
+  arrange(sos_lm_seq) %>%
+  rename("Medication sequence" = sos_lm_seq) %>%
+  select("Medication sequence", contains("2016"), contains("2021"))
+
+outall <- outall %>%
+  add_row(
+    `Medication sequence` = "N",
+    `n (%)_2016-2020` = tabn$`2016-2020`,
+    `n (%)_2021-2023` = tabn$`2021-2023`,
+    .before = 1
+  )
 
 # excel
 if (output) {
   make_one_xlsxsheet(tab)
 }
 
-colnames(tab) <- sanitize_text(colnames(tab))
+colnames(outall) <- str_remove_all(colnames(outall), "_2016-2020|_2021-2023")
+colnames(outall) <- sanitize_text(colnames(outall))
 
-default_kable(tab,
+default_kable(outall,
   escape = FALSE,
-  scale_down = F, 
+  longtable = T,
+  scale_down = F,
   font_size = 6
-)
+) %>%
+  add_header_above(c(" " = 1, "2016-2020" = 4, "2021-2023" = 4)) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "The medications are presented in order of initiation. / indicates simultaneous initiation (same day).",
+      "The outcomes are presented as Number of events, incidence/100 person-years (95% CI) for groups > 10 patients."
+    ),
+    threeparttable = T
+  ) %>%
+  row_spec(1, hline_after = T)
 ```

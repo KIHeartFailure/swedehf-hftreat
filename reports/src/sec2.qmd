@@ -3,48 +3,52 @@
 #| label: tbl-sec2
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 2 - n (%) >= 80% adherence"
+#| tbl-cap: "Secondary objective 2 - n (%) >= 80% adherence during the first year"
 #| tbl-pos: "H"
 
 sec2func <- function(medvar, byvar = NULL, byvarname) {
   if (is.null(byvar)) {
     tab <- rsdata %>%
       filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar))) %>%
-      group_by(sos_lm_gdmt) %>%
-      count(!!sym(medvar)) %>%
+      group_by(shf_indexyear_cat, sos_lm_gdmt, .drop = F) %>%
+      count(!!sym(medvar), .drop = F) %>%
       mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      ungroup() %>%
       mutate(
         np = case_when(
-          n == 0 ~ "-",
           n < 10 ~ "<10",
           TRUE ~ np
         ),
         Strata = byvarname,
         Medication = medvar
       ) %>%
-      ungroup() %>%
-      filter(!!sym(medvar) == ">=80") %>%
-      select(sos_lm_gdmt, Strata, Medication, np) %>%
-      pivot_wider(values_from = np, names_from = sos_lm_gdmt)
+      filter(!!sym(medvar) == ">=80" &
+        !(sos_lm_gdmt == "Quadruple" & shf_indexyear_cat == "2016-2020") &
+        sos_lm_gdmt != "None" &
+        !(shf_indexyear_cat == "2016-2020" & Medication == "sos_lmadhere_sglt2i_cat")) %>%
+      select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
+      pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
   } else {
     tab <- rsdata %>%
       filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar)) & !is.na(!!sym(byvar))) %>%
-      group_by(sos_lm_gdmt, !!sym(byvar)) %>%
-      count(!!sym(medvar)) %>%
+      group_by(shf_indexyear_cat, sos_lm_gdmt, !!sym(byvar), .drop = F) %>%
+      count(!!sym(medvar), .drop = F) %>%
       mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      ungroup() %>%
       mutate(
         np = case_when(
-          n == 0 ~ "-",
           n < 10 ~ "<10",
           TRUE ~ np
         ),
         Strata = paste0(byvarname, " ", !!sym(byvar)),
         Medication = medvar
       ) %>%
-      ungroup() %>%
-      filter(!!sym(medvar) == ">=80") %>%
-      select(sos_lm_gdmt, Strata, Medication, np) %>%
-      pivot_wider(values_from = np, names_from = sos_lm_gdmt)
+      filter(!!sym(medvar) == ">=80" &
+        !(sos_lm_gdmt == "Quadruple" & shf_indexyear_cat == "2016-2020") &
+        sos_lm_gdmt != "None" &
+        !(shf_indexyear_cat == "2016-2020" & Medication == "sos_lmadhere_sglt2i_cat")) %>%
+      select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
+      pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
   }
 }
 
@@ -71,9 +75,26 @@ sex <- sec2func_outer(byvar = "shf_sex", byvarname = "")
 
 cci <- sec2func_outer(byvar = "sos_com_charlsonci_cat", byvarname = "CCI")
 
-meds <- sec2func_outer(byvar = "n_othermeds_cat", byvarname = "Other medications")
+meds <- sec2func_outer(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
-taball <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
+tabn <- rsdata %>%
+  filter(sos_lm_gdmt != "None") %>%
+  group_by(shf_indexyear_cat, sos_lm_gdmt) %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    Strata = "N",
+    Medication = ""
+  ) %>%
+  ungroup() %>%
+  select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
+  pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
+
+taball <- bind_rows(tabn, overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
 
 taball <- taball %>%
   mutate(
@@ -95,14 +116,25 @@ if (output) {
 taball <- taball %>%
   mutate(
     Strata = sanitize_text(Strata),
-    Strata = str_replace_all(Strata, fixed("²"), "\\textsuperscript{2}"),
     Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
     Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
   )
 
+colnames(taball) <- str_remove_all(colnames(taball), "2016-2020_|2021-2023_")
+
 default_kable(taball,
   escape = FALSE,
   longtable = T,
-  font_size = 6
-)
+  font_size = 5.5
+) %>%
+  add_header_above(c(" " = 2, "2016-2020" = 3, "2021-2023" = 4)) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n (%).",
+      "The denominator in the percent calculation is the number of patients taking the respective medication in each strata."
+    )
+  ) %>%
+  row_spec(1, hline_after = T)
 ```

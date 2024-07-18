@@ -20,7 +20,7 @@ outcomesfunc <- function(data = rsdata, impdata = imprsdata, time, event, eventn
   out[1, 1] <- eventname
 
   ## incidence rate
-  out[1, 2] <- "No events, sum py, events/100py (95% CI)"
+  out[1, 2] <- "N events, incidence/100py (95% CI)"
 
   # 1 row - incidence
   ev <- data %>%
@@ -35,15 +35,13 @@ outcomesfunc <- function(data = rsdata, impdata = imprsdata, time, event, eventn
 
   out[1, 3:(nlevs + 2)] <- paste0(
     ev$ev, ", ",
-    fn(ev$s, dig = 0), ", ",
     fn(r$rate, dig = 0), " (",
     fn(r$lower, dig = 0), "-",
     fn(r$upper, dig = 0), ")"
   )
 
-
   ## 2 row - crude regression
-  out[2, 2] <- "Crude Hazard Ratio (95% CI), p-value"
+  out[2, 2] <- "Crude HR (95% CI), p-value"
   mod <- summary(coxph(formula(paste0("Surv(", time, ",", event, "== 'Yes') ~ ", xvar)),
     data = data
   ))
@@ -59,20 +57,21 @@ outcomesfunc <- function(data = rsdata, impdata = imprsdata, time, event, eventn
   )
 
   ## 3 row - adjusted regression
-  out[3, 2] <- "Adjusted Hazard Ratio (95% CI), p-value"
-  # mod <- summary(pool(with(impdata, coxph(formula(paste0(
-  #  "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
-  # ))))))
+  out[3, 2] <- "Adjusted HR (95% CI), p-value"
 
-  # out[3, 3:(nlevs + 2)] <- c(
-  # "reference",
-  #  paste0(
-  #    fn(exp(mod$estimate[1:(nlevs - 1)]), dig = 2),
-  #    " (", fn(exp(mod$estimate[1:(nlevs - 1)] - global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2),
-  #    "-", fn(exp(mod$estimate[1:(nlevs - 1)] + global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2), "), ",
-  #    fn(mod$p.value[1:(nlevs - 1)], dig = 3, p = TRUE)
-  #  )
-  # )
+  mod <- summary(pool(with(impdata, coxph(formula(paste0(
+    "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
+  ))))))
+
+  out[3, 3:(nlevs + 2)] <- c(
+    "reference",
+    paste0(
+      fn(exp(mod$estimate[1:(nlevs - 1)]), dig = 2),
+      " (", fn(exp(mod$estimate[1:(nlevs - 1)] - global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2),
+      "-", fn(exp(mod$estimate[1:(nlevs - 1)] + global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2), "), ",
+      fn(mod$p.value[1:(nlevs - 1)], dig = 3, p = TRUE)
+    )
+  )
 
   return(out)
 }
@@ -80,12 +79,13 @@ outcomesfunc <- function(data = rsdata, impdata = imprsdata, time, event, eventn
 outcomesfunc_outer <- function(byvar, lev, byvarname, novars) {
   if (is.null(byvar)) {
     data <- rsdata
-    # impdata <- imprsdata
+    impdata <- imprsdata
   } else {
     novars <- c(byvar, novars)
 
     data <- rsdata %>% filter(!!sym(byvar) == lev)
-    # impdata <- mice::filter(imprsdata, rsdata %>% pull(!!sym(byvar)) == lev)
+    impdata <- mice::filter(imprsdata, rsdata %>%
+      mutate(filt = !!sym(byvar) == lev) %>% pull(filt))
   }
 
   out1 <- outcomesfunc(
@@ -137,11 +137,10 @@ outcomesfunc_outer2 <- function(byvar, byvarname, novars = NULL) {
 #| cache: true
 #| cache.comments: false
 #| dependson: outcomesfunc
-#| tbl-cap: "Association between outcomes and therapy"
+#| tbl-cap: "Secondary objective 1 - Association between outcomes and therapy"
 
 overall <- outcomesfunc_outer(byvar = NULL, lev = NULL, byvarname = "Overall", novars = NULL)
 
-### OBS!!! MÅSTE FIXA IMPRSDATA SÅ SUBSET!!!!!!
 sos_prevhfh3mo <- outcomesfunc_outer2(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
 
 sos_hospward_3mo <- outcomesfunc_outer2(byvar = "sos_hospward_3mo", byvarname = "HFH", novars = "sos_prevhfh3mo")
@@ -152,7 +151,7 @@ sex <- outcomesfunc_outer2(byvar = "shf_sex", byvarname = "")
 
 cci <- outcomesfunc_outer2(byvar = "sos_com_charlsonci_cat", byvarname = "CCI")
 
-meds <- outcomesfunc_outer2(byvar = "n_othermeds_cat", byvarname = "Other medications")
+meds <- outcomesfunc_outer2(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
 outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
 
@@ -160,15 +159,23 @@ if (output) {
   make_one_xlsxsheet(outall)
 }
 
+outall <- outall %>%
+  mutate(across(everything(), sanitize_text)) %>%
+  mutate(
+    Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+    Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+  )
+
 default_kable(outall,
   longtable = TRUE,
-  font_size = 4.5
+  font_size = 4.5,
+  escape = FALSE
 ) %>%
   footnote(
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Abbreviations: py, person-years"
+      "Abbreviations: py, person-years; HR, Hazard Ratio"
     ),
     threeparttable = T
   )
@@ -199,7 +206,7 @@ kmfunc <- function(time, event, eventname) {
     "strata" = s$strata
   ) %>%
     mutate(
-      strata = fct_rev(fct_inorder(str_remove_all(strata, "sos_lm_gdmt="))),
+      strata = fct_inorder(str_remove_all(strata, "sos_lm_gdmt=")),
     )
   ylim <- c(0, 1)
   ylab <- paste0(eventname, " (%)")
@@ -224,10 +231,13 @@ kmfunc <- function(time, event, eventname) {
   table_data <- plot_data %>%
     filter(
       time %in% c(seq(0, global_followup_year, 1) * 365)
+    ) %>%
+    mutate(
+      strata = fct_rev(strata)
     )
 
   t <- ggplot(table_data, aes(y = strata, x = time / 365.25)) +
-    geom_text(aes(label = n.risk), size = 6, fontface = "bold", colour = rep(global_cols[5:1], each = 4)) +
+    geom_text(aes(label = n.risk), size = 6, fontface = "bold", colour = rep(global_cols[1:5], each = 4)) +
     # scale_x_continuous(breaks = seq(0, endfollow, 1), limits = c(0, endfollow), expand = c(0, 0)) +
     # scale_y_discrete(expand = c(0, 0)) +
     scale_x_continuous(breaks = seq(0, global_followup_year, 1), limits = c(0, global_followup_year)) +
@@ -245,7 +255,7 @@ kmfunc <- function(time, event, eventname) {
       # plot.margin = unit(c(0, 1, 0, 3), "cm"), # trouble
       # axis.text.y = element_blank()
       # axis.text.y = element_text(margin = margin(0, 0, 0, 100))
-      axis.text.y = element_text(hjust = 0, colour = global_cols[1:4], face = "bold")
+      axis.text.y = element_text(hjust = 0, colour = global_cols[5:1], face = "bold")
     )
 
   km <- (p / t) + plot_layout(height = c(1, .25))
@@ -261,7 +271,7 @@ kmfunc <- function(time, event, eventname) {
 #| cache: true
 #| cache.comments: false
 #| dependson: kmfunc
-#| fig-cap: "Cumulative incidence"
+#| fig-cap: "Secondary objective 1 - Cumulative incidence"
 #| fig-subcap: !expr outvars$name
 #| layout-ncol: 2
 #| layout-nrow: 2

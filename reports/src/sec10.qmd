@@ -1,9 +1,17 @@
 ```{r}
-#| label: sec10
+#| label: tbl-sec10
 #| cache: true
 #| cache.comments: false
+#| tbl-cap: "Secondary objective 10 - Association between patient characteristics and discontinuation at 1 year"
+#| tbl-pos: "H"
 
 predictorsfunc <- function(medvar) {
+  tabn <- rsdata %>%
+    filter(!!sym(paste0("sos_lm_", medvar)) == "Yes" & shf_indexyear_cat == "2021-2023") %>%
+    count(!!sym(paste0("fu_sos_lm_", medvar))) %>%
+    mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+    filter(!!sym(paste0("fu_sos_lm_", medvar)) == 0)
+
   impdata <- mice::filter(imprsdata, rsdata %>%
     mutate(filt = !!sym(paste0("sos_lm_", medvar)) == "Yes" & shf_indexyear_cat == "2021-2023") %>% pull(filt))
   # adjusted
@@ -42,14 +50,15 @@ predictorsfunc <- function(medvar) {
         var == "shf_age_cat70-80" ~ "Age (years) 70-80 vs <70",
         var == "sos_prevhfh3mo" ~ "Previous HFH within 3 months",
         var == "shf_followuplocation_catHospital" ~ "Follow-up hospital vs Primary care/Other",
-        var == "shf_ef_catHFmrEF" ~ "HFmrEF vs HFrEF",
-        var == "shf_ef_catHFpEF" ~ "HFpEF vs HFrEF",
         var == "shf_durationhf>=6" ~ "Duration HF (months) >=6 vs <6",
         var == "shf_nyha_catIII-IV" ~ "NYHA class III-IV vs I-II",
         var == "shf_bmi_cat>=30" ~ "BMI (kg/m²) >=30 vs <30",
-        var == "shf_bpsys_cat>=140" ~ "Systolic bloodpressure (mmHg) >=140 vs <140",
-        var == "shf_heartrate_cat>70" ~ "Heart rate (beats/min) >70 vs <=70",
-        var == "shf_gfrckdepi_cat<60" ~ "eGFR (mL/min/1.73 m²) <60 vs >=60",
+        var == "shf_bpsys_cat>=140" ~ "Systolic bloodpressure (mmHg) >=140 vs 100-139",
+        var == "shf_bpsys_cat<100" ~ "Systolic bloodpressure (mmHg) <100 vs 100-139",
+        var == "shf_heartrate_cat>70" ~ "Heart rate (beats/min) >70 vs 50-70",
+        var == "shf_heartrate_cat<50" ~ "Heart rate (beats/min) <50 vs 50-70",
+        var == "shf_gfrckdepi_cat30-59" ~ "eGFR (mL/min/1.73 m²) 30-59 vs >=60",
+        var == "shf_gfrckdepi_cat<30" ~ "eGFR (mL/min/1.73 m²) <30 vs >=60",
         var == "shf_potassium_cat<3.5 (Hypokalemia)" ~ "Hypokalemia vs Normakalemia",
         var == "shf_potassium_cat>5 (Hyperkalemia)" ~ "Hyperkalemia vs Normakalemia",
         var == "shf_ntprobnp_cat3rd tertile" ~ "NT-proBNP (pg/ml) 3rd tertile vs 1st tertile",
@@ -59,15 +68,22 @@ predictorsfunc <- function(medvar) {
         var == "scb_educationUniversity" ~ "University vs Compulsory school",
         var == "scb_dispincome_cat3rd tertile within year" ~ "Income 3rd tertile vs 1st tertile",
         var == "scb_dispincome_cat2nd tertile within year" ~ "Income 2nd tertile vs 1st tertile",
-        var == "n_othermeds_cat2-4" ~ "2-4 vs 0-1 other medications",
-        var == "n_othermeds_cat5-6" ~ "5-6 vs 0-1 other medications",
-        var == "n_othermeds_cat7-8" ~ "7-8 vs 0-1 other medications",
-        var == "n_othermeds_cat>=9" ~ ">=9 vs 0-1 other medications",
+        var == "sos_lm_n_othermeds_cat2-4" ~ "2-4 vs 0-1 other medications",
+        var == "sos_lm_n_othermeds_cat5-6" ~ "5-6 vs 0-1 other medications",
+        var == "sos_lm_n_othermeds_cat7-8" ~ "7-8 vs 0-1 other medications",
+        var == "sos_lm_n_othermeds_cat>=9" ~ ">=9 vs 0-1 other medications",
         var == "shf_device_catCRT/ICD" ~ "CRT/ICD",
+        var == "shf_ef<30" ~ "LVEF (%) <30 vs 30-39",
         TRUE ~ var
       )
     ) %>%
     select(Variable, orci)
+  logregout <- logregout %>%
+    add_row(
+      Variable = "Discontinuation, n (%)",
+      orci = tabn$np,
+      .before = 1
+    )
 }
 
 tab <- lapply(c("bbl", "rasiarni", "mra", "sglt2i"),
@@ -76,7 +92,7 @@ tab <- lapply(c("bbl", "rasiarni", "mra", "sglt2i"),
 tab <- bind_rows(tab, .id = "id")
 
 tab <- tab %>%
-  mutate(id = factor(id, levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "Sglt2i")))
+  mutate(id = factor(id, levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "SGLT2i")))
 
 tab2 <- pivot_wider(tab, values_from = "orci", names_from = "id")
 
@@ -96,5 +112,6 @@ default_kable(tab2,
   escape = FALSE,
   scale_down = T
 ) %>%
-  add_header_above(c(" " = 1, "Adjusted Odds Ratio (95% CI), p-value" = 4))
+  add_header_above(c(" " = 1, "Adjusted Odds Ratio (95% CI), p-value" = 4)) %>%
+  row_spec(1, hline_after = T)
 ```

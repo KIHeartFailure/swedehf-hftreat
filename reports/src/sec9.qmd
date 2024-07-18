@@ -3,18 +3,29 @@
 #| label: tbl-sec9-1
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 9 - n (%) taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
+#| tbl-cap: "Secondary objective 9 - Patients taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
 #| tbl-pos: "H"
 
 rsdatatmp <- rsdata %>%
   filter(shf_indexyear_cat == "2021-2023" & sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_rasiarni == "Yes")
 
+tabn <- rsdatatmp %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    Medication = "N"
+  ) %>%
+  select(Medication, np)
+
 tab <- rsdatatmp %>%
-  count(sos_lm_ivabradin, sos_lm_loopdiuretics, sos_lm_digoxin, sos_lm_nitrate) %>%
+  count(sos_lm_ivabradin, sos_lm_loopdiuretics, sos_lm_digoxin, sos_lm_nitrate, .drop = F) %>%
   mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
   mutate(
     np = case_when(
-      n == 0 ~ "-",
       n < 10 ~ "<10",
       TRUE ~ np
     ),
@@ -29,7 +40,9 @@ tab <- rsdatatmp %>%
   ) %>%
   select(Medication, np)
 
-colnames(tab) <- c("Medication", "n (%)")
+tab <- rbind(tabn, tab)
+
+colnames(tab) <- c("Medication", "Ivabradin, loopdiuretics, digoxin or nitrates on top of all GDMT")
 
 # excel
 if (output) {
@@ -41,7 +54,16 @@ colnames(tab) <- sanitize_text(colnames(tab))
 default_kable(tab,
   escape = FALSE,
   scale_down = F
-)
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n (%)."
+    )
+  ) %>%
+  column_spec(2, width = "6cm") %>%
+  row_spec(1, hline_after = T)
 ```
 
 ```{r}
@@ -49,7 +71,7 @@ default_kable(tab,
 #| cache: true
 #| cache.comments: false
 #| dependson: tbl-sec9-1
-#| tbl-cap: "Secondary objective 9 - Doses by ATC for patients taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
+#| tbl-cap: "Secondary objective 9 - Doses by molecule for patients taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
 #| tbl-pos: "H"
 
 sec9func2 <- function(medvar) {
@@ -67,7 +89,7 @@ sec9func2 <- function(medvar) {
       n = n()
     ) %>%
     mutate(
-      out = paste0(n, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
+      out = paste0(n, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
       out = case_when(
         n == 0 ~ "-",
         n < 10 ~ "<10",
@@ -100,7 +122,11 @@ tab <- tab %>%
     ), levels = 1:4, labels = c("Ivabradin", "Loopdiuretics", "Digoxin", "Nitrate"))
   )
 
-colnames(tab) <- c("Medication", "ATC", "n, median [minimum, q1, q3, maximum], mean (standard deviation)")
+tab <- left_join(tab, lmvarsub %>% select(-med), by = c("atcvar" = "atc")) %>%
+  mutate(atcvar = sub) %>%
+  select(-sub)
+
+colnames(tab) <- c("Medication", "Molecule", "Daily dose")
 
 # excel
 if (output) {
@@ -112,5 +138,12 @@ colnames(tab) <- sanitize_text(colnames(tab))
 default_kable(tab,
   escape = FALSE,
   scale_down = T
-)
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n, median [minimum, q1, q3, maximum], mean (standard deviation)."
+    )
+  )
 ```

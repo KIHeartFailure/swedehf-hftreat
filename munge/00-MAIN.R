@@ -37,7 +37,9 @@ save(
     "stratavars",
     "metavars",
     "deathmeta",
-    "outcommeta"
+    "outcommeta",
+    "lmvars",
+    "lmvarsub"
   )
 )
 

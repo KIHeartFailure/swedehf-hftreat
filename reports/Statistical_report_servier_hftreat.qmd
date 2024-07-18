@@ -81,43 +81,83 @@ In 2022, 69 of 76 Swedish hospitals enrolled patients in SwedeHF, which had a 32
 SwedeHF was linked with national Swedish registries (SHFDB version 4.2.1) through the 
 Swedish personal identity number (PIN)[@pin]: 
 
-- The National Prescribed Drug Register (The National Board of Health and Welfare) for information on medications.
+- The National Prescribed Drug Register (The National Board of Health and Welfare) for information on medications
 - The National Patient Register (The National Board of Health and Welfare) for additional comorbidities and outcomes
 - The Cause of Death Register[@dors] (The National Board of Health and Welfare) for outcomes death
 - Longitudinal integrated database for health insurance and labour market studies (LISA)[@lisa] 
 and the Register of the Total Population (Statistics Sweden) for socio-economic factors
 
-## Acknowledgments
+## Ethics and informed consent
 
-Please include "We thank all staff members at care units reporting into the SwedeHF registry for their contribution." 
-in the Acknowledgements of any resulting articles. 
-
-## Ethics and Informed consent
-
-The study was approved by the Swedish Ethical Review Authority, dnr 2021-04326. 
+The study was approved by the Swedish Ethical Review Authority. 
 Individual consent was not required, but patients were informed of entry into SwedeHF and able to opt‐out.
 
 ## Inclusion/exclusion criteria
 
 ```{r}
 #| label: tbl-flow
-#| tbl-cap: Information for flowchart
+#| tbl-cap: Flowchart
 #| tbl-pos: "H"
 
-default_kable(flow) %>%
-  row_spec(c(1, 11), bold = T)
+flow <- flow %>%
+  mutate(
+    `Inclusion/exclusion criteria` = sanitize_text(`Inclusion/exclusion criteria`),
+    `Inclusion/exclusion criteria` = str_replace_all(`Inclusion/exclusion criteria`, fixed("$>$="), "$\\geq$"),
+    `Inclusion/exclusion criteria` = str_replace_all(`Inclusion/exclusion criteria`, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(flow, escape = F)
 ```
 
-First patient in: `r min(rsdata$shf_indexdtm)` and last patient in: `r max(rsdata$shf_indexdtm)` 
+First patient included `r min(rsdata$shf_indexdtm)` and last patient included `r max(rsdata$shf_indexdtm)` 
 from approximately `r rsdata %>% distinct(shf_centre) %>% count() %>% pull(n)` enrolling centers. 
-
-Baseline for this population is date of visits or date of discharge for the visit/hospitalization recorded in SwedeHF. 
 
 ## Definitions
 
-Information on data sources, definitions etc. are found https://kiheartfailure.github.io/shfdb4/.
+### Baseline
+
+Baseline is date of visits or date of discharge for the visit/hospitalization recorded in SwedeHF. 
+
+### Variable defintions
 
 {{< include src/vars.qmd >}}
+
+More information on data sources and definitions are found https://kiheartfailure.github.io/shfdb4/.
+
+### Medication
+
+```{r}
+#| label: tbl-meds
+#| tbl-cap: Medications including molecules
+#| tbl-pos: "H"
+
+tab <- lmvarsub %>%
+  group_by(med) %>%
+  mutate(
+    c = 1:n(),
+    med = if_else(c == 1, med, "")
+  ) %>%
+  ungroup() %>%
+  select(med, sub, atc)
+default_kable(tab, col.names = c("Medication", "Molecule", "ATC code"), scale_down = F)
+```
+
+#### Dose
+
+The dose taken by the patient was evaluated using the strength of the tablet prescribed x the number of pills the patients was prescribed to take each day. The latter is written in free text and an algorithm was derived to extract the dose prescribed. If there was no text or it was not possible to interpret, the number of tablets / day was assumed to be the mean number of pills taken per day for the posts with non-missing values with the same ATC code.
+
+#### Adherence
+
+Adherence is defined as the number of days to the next dispensation (within each medication) / the number of pills prescribed per day during the following year after baseline. Possible discontinuation will therefore be seen also in low adherence. If the percent is > 100 the adherence is assumed to be 100.  
+
+#### Discontinuation 
+
+Discontinuation is defined as no prescription at 6 months and 1 year $\pm$ 2 months. Patients who do not have follow-up until 6 months + 2 months and 1 year + 2 months are excluded from the respective calculations. 
+
+#### Limitations 
+
+1. The text extraction is sometimes a matter of interpretation.  
+2. The prescription can be old and the doctor can verbally have instructed the patient to take a different dose/stop medication.
 
 # Statistical analysis 
 
@@ -134,6 +174,8 @@ and Rubin’s rules was used for combining estimates and standard errors across 
 Variables included in the model are indicated in @tbl-base. 
 
 \clearpage
+
+\blandscape
 
 # Results
 
@@ -155,8 +197,6 @@ percfem <- rsdata %>%
 ```
 
 The median (q1-q3) age is `r med` and `r percfem`% females.    
-
-\blandscape
 
 ## Baseline characteristics
 
@@ -191,8 +231,6 @@ Separate analyses before and after the availability of dapagliflozin on the mark
 Analyses according to patients’ status, i.e. up to 3 months post-discharge for a HF hospitalization, vs stable patients (all the others). Baseline characteristics of these two populations will be analyzed  and for categorical variables and the Mann-Whitney U-test for continuous variables. + according to area of previous hospitalization if any
 Analyses will be stratified based on key patient characteristics, i.e. age, sex, charlson index, number of concomitant treatments at the index date
 
-QUESTION: The text in the protocol is different, I choose not to go by the endpoint text since this is partly described in other objectives. OK?
-
 {{< include src/primary.qmd >}}
 
 \clearpage
@@ -209,10 +247,6 @@ Event rates for the outcomes according to the combinations of drugs prescribed a
 
 From protocol under Analyses for the secondary objectives: 
 The association between the combinations of drugs prescribed among the four pillars (mono, bi, tri or quadruple therapy) and the risk of HF hospitalization and the composite of HF hospitalization and CV death (for the time frame data on CV death is available) will be assessed by time-to-event analyses, with the Kaplan-Meier method and univariable/multivariable Cox regression models with adjustments for all the available patients´ clinical characteristics.  
-
-QUESTION: Should be by combinations (VERY many!!!) or is mono ect ok?
-QUESTION: Should No meds be excluded? Reference None, Mono or Quadruple?
-QUESTION: Should the time be cut at for example 3 years?
 
 {{< include src/sec1.qmd >}}
 
@@ -248,6 +282,8 @@ The association between the adherence to the four pillars (see secondary objecti
 
 \clearpage
 
+\blandscape
+
 ### Secondary objective 4
 
 From protocol under Secondary objectives:
@@ -259,11 +295,11 @@ Event rates for the outcomes associated with the different sequences (+ time to 
 From protocol under Analyses for the secondary objectives: 
 In a subset of patients with “de novo” HFrEF defined as HF duration < 6 months, multivariable Cox regression models will be fitted to assess the associations between outcomes and the different sequences/time of initiations of the 4 pillars or of triple therapy among the 4 pilars. 
 
-Together with HF duration <=6 months I also added criteria that they need to be medication naive for sglt2i, RASi/ARNi, BBL and MRA (defined as not taking any of these drugs 4-12 months prior to baseline)
+Together with HF duration $\le$ 6 months the inclusion criteria is also that the patient needs to be medication naive for SGLT2i, RASi/ARNi, Beta-blocker and MRA (defined as not taking any of these drugs 4-12 months prior to baseline). 
 
 {{< include src/sec4.qmd >}}
 
-QUESTION: Need to defined what categories should be compared in the cox
+\elandscape
 
 \clearpage
 
@@ -278,7 +314,7 @@ Number of patients taking an SGLT2i, a beta-blocker and an MRA simultaneously at
 From protocol under Analyses for the secondary objectives: 
 The number (%) of patients taking an SGLT2i, a beta-blocker and an MRA simultaneously will be calculated. 
 
-No output: See the results for the primary endpoint/secondary objective 6. However, do they want number of pats TAKING the combo or the number of patients eligible (different in objective and endpoint/analyses)?
+No output: See the results for the primary endpoint/secondary objective 6. 
 
 \clearpage
 
@@ -295,18 +331,13 @@ In the eligible patients identified according to the secondary objective 5, dose
 
 Eligible is defined as: 
 
-- >= 100 mm Hg or taking any drug, 
-- heart rate ≥ 50 beats/minute or bbl
-- eGFR ≥ 30 mL/min/1.73 m or mra or sglt2
-- potassium ≤ 5.0 mEq/L or mra
-- no diabetes type 1 or sglt2. 
+- $\ge$ 100 mm Hg or taking any drug, 
+- heart rate $\ge$ 50 beats/minute or Beta-blocker
+- eGFR $\ge$ 30 mL/min/1.73 or MRA or SGLT2i
+- potassium $\le$ 5.0 mEq/L or MRA
+- no diabetes type 1 or SGLT2i. 
 
-QUESTION: The cut-offs proposed above under Analyses are not eligible patients. 
-QUESTION: According to the above definition ALL patients are eligible (except the patients with missing data on sys bp ect). So the presentation is for ALL patients. 
-
-Since all patients are eligible according to the definition see baseline table. 
-
-What I have done is presented the doses of patients taking sglt2+bbl+mra according to sys bp ect. 
+All patients are eligible according to the above definition. 
 
 {{< include src/sec6.qmd >}}
 
@@ -320,8 +351,7 @@ To describe the number of patients who would be eligible for a SPC containing th
 From protocol under Endpoints: 
 Number of patients who would be eligible for a SPC containing the four pillars (SGLT2i, BB, MRA, ACEi/ARNI) according to systolic blood pressure, heart rate, renal function, and potassium levels at index date.
 
-From protocol under Analyses for the secondary objectives: 
-What do you think about doing the same as point 5 and 6 with the 4 pillars?
+From protocol under Analyses for the secondary objectives: NA
 
 {{< include src/sec7.qmd >}}
 
@@ -363,12 +393,10 @@ From protocol under Secondary objectives:
 Report the proportion of discontinuation of combinations of the four pillars, and patients´ characteristics associated with discontinuation.
 
 From protocol under Endpoints: 
-Patient characteristics associated with drug discontinuation (4 pillars). (I switched the text from the protocol between 9 and 10)
+Patient characteristics associated with drug discontinuation (4 pillars). (Switched the text from the protocol between 9 and 10)
 
 From protocol under Analyses for the secondary objectives: 
-To assess patients’ characteristics associated with discontinuation of the combinations of drugs among the four pillars (mono, bi, tri or quadruple therapy), multivariable logistic regression models will be performed to identify patient characteristics independently associated with discontinuation (NOTE: from endpoint 8 in protocol)
-
-Discontinuation is defined as no prescription at 1 year +/- 2 months. Patients who do not have follow-up until 1 year + 2 months are excluded. 
+To assess patients’ characteristics associated with discontinuation of the combinations of drugs among the four pillars (mono, bi, tri or quadruple therapy), multivariable logistic regression models will be performed to identify patient characteristics independently associated with discontinuation (from endpoint 8 in protocol)
 
 {{< include src/sec10.qmd >}}
 
@@ -400,8 +428,6 @@ Number of patients (%) who remain on the combination of dapagliflozin and bisopr
 From protocol under Analyses for the secondary objectives: 
 Number of patients (%) who remain on the combination of dapagliflozin and bisoprolol for at least 6 months and for at least 12 months. Dosage variation of bisoprolol and dosages maintained for at least 6 months and for at least 12 months.
 
-Defined as >= 1 prescription at 6mo and 6 months and 1 year +/- 2 months. Patients who do not have follow-up until 6 months + 2 months and 1 year + 2 months are excluded. 
-
 {{< include src/sec12.qmd >}}
 
 \clearpage
@@ -416,8 +442,6 @@ Number (%) of patients treated by a stable dose of bisoprolol to whom dapagliflo
 
 From protocol under Analyses for the secondary objectives: 
 Number (%) of patients treated by a stable dose of bisoprolol to whom dapagliflozin could be prescribed (i.e. patients with eGFR ≥ 25 mL/min/1.73 m2 and without type 1 diabetes mellitus).
-
-eGFR and type I diabetes assumed to be the same at 6 months and 1 year follow-up. OK?
 
 {{< include src/sec13.qmd >}}
 
@@ -444,7 +468,7 @@ Number (%) of patients treated concomitantly with dapagliflozin, bisoprolol and 
 
 The R code for all data handling and statistical analyses are found: 
 
-https://github.com/KIHeartFailure/swedehf-gdmt. On publication
+https://github.com/KIHeartFailure/swedehf-hftreat. On publication
 the repository will be made public so as to 
 link to it from the resulting article for increased transparency and code sharing.
 No data or output is stored in the repository. 

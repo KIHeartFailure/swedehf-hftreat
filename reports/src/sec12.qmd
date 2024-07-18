@@ -36,7 +36,7 @@ tab1yr <- rsdatatmp %>%
 The number (%) of patients 2021-2023 taking dapagliflozin and bisoprolol and remaining on the combination at 6 months and 1 year is `r tab6mo %>% pull(np)` and `r tab1yr %>% pull(np)` respectively. 
 
 ```{r}
-#| label: tab-sec12-2
+#| label: tbl-sec12-2
 #| cache: true
 #| cache.comments: false
 #| dependson: sec12-1
@@ -51,55 +51,65 @@ rsdatatmp <- rsdatatmp %>%
       dose_sos_lm_bbl > dosefu_sos_lm_C07AB07_6mo ~ 2,
       dose_sos_lm_bbl < dosefu_sos_lm_C07AB07_6mo ~ 3
     ), levels = 1:3, labels = c("No change", "Decrease from baseline", "Increase from baseline")),
-    dosechangesglt2i_6mo = factor(case_when(
-      is.na(fu_sos_lm_6mo) | fu_sos_lm_6mo == 0 ~ NA_real_,
-      dose_sos_lm_sglt2i == dosefu_sos_lm_A10BK01_6mo ~ 1,
-      dose_sos_lm_sglt2i > dosefu_sos_lm_A10BK01_6mo ~ 2,
-      dose_sos_lm_sglt2i < dosefu_sos_lm_A10BK01_6mo ~ 3
-    ), levels = 1:3, labels = c("No change", "Decrease from baseline", "Increase from baseline")),
     dosechangebbl_1yr = factor(case_when(
       is.na(fu_sos_lm_1yr) | fu_sos_lm_1yr == 0 ~ NA_real_,
       dose_sos_lm_bbl == dosefu_sos_lm_C07AB07_1yr ~ 1,
       dose_sos_lm_bbl > dosefu_sos_lm_C07AB07_1yr ~ 2,
       dose_sos_lm_bbl < dosefu_sos_lm_C07AB07_1yr ~ 3
-    ), levels = 1:3, labels = c("No change", "Decrease from baseline", "Increase from baseline")),
-    dosechangesglt2i_1yr = factor(case_when(
-      is.na(fu_sos_lm_1yr) | fu_sos_lm_1yr == 0 ~ NA_real_,
-      dose_sos_lm_sglt2i == dosefu_sos_lm_A10BK01_1yr ~ 1,
-      dose_sos_lm_sglt2i > dosefu_sos_lm_A10BK01_1yr ~ 2,
-      dose_sos_lm_sglt2i < dosefu_sos_lm_A10BK01_1yr ~ 3
-    ), levels = 1:3, labels = c("No change", "Decrease from baseline", "Increase from baseline")),
+    ), levels = 1:3, labels = c("No change", "Decrease from baseline", "Increase from baseline"))
   )
 
 tab6mo <- rsdatatmp %>%
   filter(!is.na(fu_sos_lm_6mo) & fu_sos_lm_6mo == 1) %>%
-  count(dosechangebbl_6mo, dosechangesglt2i_6mo, .drop = F) %>%
+  count(dosechangebbl_6mo, .drop = F) %>%
   mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
   mutate(
     np = case_when(
-      n == 0 ~ "-",
       n < 10 ~ "<10",
       TRUE ~ np
     )
-  ) %>%
-  select(-n)
-colnames(tab6mo) <- c("Change in Beta-blocker dose", "Change in SGLT2i dose", "6 months n (%)")
+  )
+tab6mon <- rsdatatmp %>%
+  filter(!is.na(fu_sos_lm_6mo) & fu_sos_lm_6mo == 1) %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    dosechangebbl_6mo = "N"
+  )
+tab6mo <- rbind(tab6mon, tab6mo) %>% select(dosechangebbl_6mo, np)
 
 tab1yr <- rsdatatmp %>%
   filter(!is.na(fu_sos_lm_1yr) & fu_sos_lm_1yr == 1) %>%
-  count(dosechangebbl_1yr, dosechangesglt2i_1yr, .drop = F) %>%
+  count(dosechangebbl_1yr, .drop = F) %>%
   mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
   mutate(
     np = case_when(
-      n == 0 ~ "-",
       n < 10 ~ "<10",
       TRUE ~ np
     )
-  ) %>%
-  select(-n)
-colnames(tab1yr) <- c("Change in Beta-blocker dose", "Change in SGLT2i dose", "1 year n (%)")
+  )
 
-tabboth <- full_join(tab6mo, tab1yr, by = c("Change in Beta-blocker dose", "Change in SGLT2i dose"))
+tab1yrn <- rsdatatmp %>%
+  filter(!is.na(fu_sos_lm_1yr) & fu_sos_lm_1yr == 1) %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    dosechangebbl_1yr = "N"
+  )
+tab1yr <- rbind(tab1yrn, tab1yr) %>% select(dosechangebbl_1yr, np)
+
+colnames(tab6mo) <- c("Change in Beta-blocker dose", "6 months")
+colnames(tab1yr) <- c("Change in Beta-blocker dose", "1 year")
+
+tabboth <- full_join(tab6mo, tab1yr, by = c("Change in Beta-blocker dose"))
 
 # excel
 if (output) {
@@ -110,6 +120,14 @@ colnames(tabboth) <- sanitize_text(colnames(tabboth))
 
 default_kable(tabboth,
   escape = FALSE,
-  scale_down = T
-)
+  scale_down = F
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n (%)."
+    )
+  ) %>%
+  row_spec(1, hline_after = T)
 ```

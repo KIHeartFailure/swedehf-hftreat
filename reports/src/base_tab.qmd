@@ -3,7 +3,7 @@
 #| cache: true
 #| cache.comments: false
 
-basetabfunc_inner <- function(x, data, stratavar, catdig, contdig) {
+basetabfunc_inner <- function(x, data, stratavar, catdig, contdig, overall) {
   tmp <- data %>%
     filter(!is.na(!!sym(x)) & !is.na(!!sym(stratavar)))
 
@@ -40,6 +40,24 @@ basetabfunc_inner <- function(x, data, stratavar, catdig, contdig) {
       p <- fn(chisq.test(tmp %>% pull(!!sym(stratavar)), tmp %>% pull(!!sym(x)))$p.value, p = T, dig = 3)
     } else {
       p <- "-"
+    }
+
+    if (overall) {
+      outall <- data %>%
+        filter(!is.na(!!sym(x))) %>%
+        count(!!sym(x), .drop = F) %>%
+        mutate(
+          Overall = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")"),
+          Overall = case_when(
+            sum(n) == 0 ~ "-",
+            n < 10 ~ "<10",
+            TRUE ~ Overall
+          ),
+          level = !!sym(x)
+        ) %>%
+        select(level, Overall)
+
+      out <- full_join(outall, out, by = "level")
     }
 
     # if levels No, Yes only present Yes
@@ -91,7 +109,10 @@ basetabfunc_inner <- function(x, data, stratavar, catdig, contdig) {
         n = n()
       ) %>%
       mutate(
-        out = paste0(fn(med, contdig), " [", fn(min, contdig), ", ", fn(q1, contdig), ", ", fn(q3, contdig), ", ", fn(max, contdig), "], ", fn(mean, contdig), " (", fn(sd, contdig), ")"),
+        out = paste0(
+          fn(med, contdig), " [", fn(min, contdig), ", ", fn(q1, contdig), ", ",
+          fn(q3, contdig), ", ", fn(max, contdig), "], ", fn(mean, contdig), " (", fn(sd, contdig), ")"
+        ),
         out = case_when(
           n == 0 ~ "-",
           n < 10 ~ "<10",
@@ -111,6 +132,35 @@ basetabfunc_inner <- function(x, data, stratavar, catdig, contdig) {
       p <- "-"
     }
 
+    if (overall) {
+      outall <- data %>%
+        filter(!is.na(!!sym(x))) %>%
+        summarise(
+          med = quantile(!!sym(x), na.rm = T, probs = c(0.5)),
+          q1 = quantile(!!sym(x), na.rm = T, probs = c(0.25)),
+          q3 = quantile(!!sym(x), na.rm = T, probs = c(0.75)),
+          mean = mean(!!sym(x), na.rm = T),
+          sd = sd(!!sym(x), na.rm = T),
+          min = min(!!sym(x), na.rm = T),
+          max = max(!!sym(x), na.rm = T),
+          n = n()
+        ) %>%
+        mutate(
+          Overall = paste0(
+            fn(med, contdig), " [", fn(min, contdig), ", ", fn(q1, contdig), ", ",
+            fn(q3, contdig), ", ", fn(max, contdig), "], ", fn(mean, contdig), " (", fn(sd, contdig), ")"
+          ),
+          Overall = case_when(
+            n == 0 ~ "-",
+            n < 10 ~ "<10",
+            TRUE ~ Overall
+          )
+        ) %>%
+        select(Overall)
+
+      out <- bind_cols(outall, out)
+    }
+
     out <- out %>%
       mutate(
         var = x,
@@ -125,7 +175,7 @@ basetabfunc_inner <- function(x, data, stratavar, catdig, contdig) {
 contdig <- tibble(vars = c("shf_potassium"), contdig = 1)
 catdig <- 0
 
-basetabfunc <- function(data, novars = NULL, stratavar) {
+basetabfunc <- function(data, novars = NULL, stratavar, overall = F, tabheader) {
   tab <- data %>%
     count(!!sym(stratavar), .drop = F) %>%
     mutate(n = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")")) %>%
@@ -138,10 +188,24 @@ basetabfunc <- function(data, novars = NULL, stratavar) {
     ) %>%
     select(var, level, pmis, levels(data %>% pull(!!sym(stratavar))), p)
 
+  if (overall) {
+    taboverall <- data %>%
+      count() %>%
+      mutate(
+        n = paste0(n)
+      )
+
+    tab <- tab %>%
+      add_column(
+        Overall = taboverall %>% pull(n),
+        .before = 4
+      )
+  }
+
   tabvarstmp <- setdiff(tabvars, novars)
   tabtmp <- sapply(tabvarstmp,
     FUN = basetabfunc_inner, data = data,
-    stratavar = stratavar, catdig = catdig, contdig = contdig
+    stratavar = stratavar, catdig = catdig, contdig = contdig, overall = overall
   )
 
   tabtmp <- bind_rows(tabtmp)
@@ -171,23 +235,25 @@ basetabfunc <- function(data, novars = NULL, stratavar) {
         coalesce(Variable, paste0("  ", level))
       ),
       # small fixes
-      Variable = str_replace_all(Variable, fixed("Disposable income (100 SEK)"), "Income")
+      Variable = str_replace_all(Variable, fixed("Disposable income (100 SEK)"), "Income"),
+      pmis = if_else(var_tmp == "sos_hospward_3mo", "0", pmis)
     )
 
   # footnotes
   tab <- tab %>%
     mutate(
-      footnote1 = if_else(!is.na(var) & var %in% modvars, footnote_marker_alphabet(1, format = "latex"), ""),
-      footnote2 = if_else(!is.na(var) & var %in% c("shf_potassium_cat", "shf_potassium"), footnote_marker_alphabet(2, format = "latex"), "")
+      footnote1 = if_else(!is.na(var) & var %in% modvars, footnote_marker_alphabet(1, format = "latex"), "")
     ) %>%
     unite(footnote, starts_with("footnote"), sep = "")
 
-  cn <- c("Variable", "Missing (%)", levels(data %>% pull(!!sym(stratavar))), "p-value")
-  cn <- str_remove(cn, "Yes ")
+  if (overall) {
+    cn <- c("Variable", "Missing (%)", "Overall", levels(data %>% pull(!!sym(stratavar))), "p-value")
+  } else {
+    cn <- c("Variable", "Missing (%)", levels(data %>% pull(!!sym(stratavar))), "p-value")
+  }
 
   footnotetext <- c(
-    "Included in multiple imputation and regression models.",
-    "Included in the CRF 2006."
+    "Included in multiple imputation and regression models."
   )
 
   # excel
@@ -199,8 +265,7 @@ basetabfunc <- function(data, novars = NULL, stratavar) {
     ) %>%
     select(Variable, pmis:p) %>%
     add_row(Variable = "") %>%
-    add_row(Variable = paste0("a ", footnotetext[1])) %>%
-    add_row(Variable = paste0("b ", footnotetext[2]))
+    add_row(Variable = paste0("a ", footnotetext[1]))
 
   make_one_xlsxsheet(tab_xls, colnames = cn)
 
@@ -226,13 +291,26 @@ basetabfunc <- function(data, novars = NULL, stratavar) {
 
   cn <- sanitize_text(cn)
 
+  ce <- if_else(overall, 3, 2)
+  nl <- nlevels(data %>% pull(!!sym(stratavar)))
+
+  if (overall) {
+    colspec <- c(1, 3:(3 + nl))
+  } else {
+    colspec <- c(1, 3:(2 + nl))
+  }
+
+  header <- c(ce, nl, 1)
+  names(header) <- c(" ", tabheader, " ")
+
   default_kable(tab,
-    font_size = 5,
+    font_size = 6,
     longtable = TRUE,
     escape = FALSE,
     col.names = cn
   ) %>%
     add_indent(indent_rows) %>%
+    add_header_above(header = header) %>%
     footnote(
       footnote_order = c("general", "symbol", "alphabet"),
       general_title = "",
@@ -241,7 +319,9 @@ basetabfunc <- function(data, novars = NULL, stratavar) {
       ),
       alphabet = footnotetext,
       threeparttable = T
-    )
+    ) %>%
+    column_spec(colspec, width = "4cm") %>%
+    row_spec(1, hline_after = T)
 }
 ```
 
@@ -250,10 +330,10 @@ basetabfunc <- function(data, novars = NULL, stratavar) {
 #| cache: true
 #| cache.comments: false
 #| dependson: basetabfunc
-#| tbl-cap: "Baseline characteristics by patients status"
+#| tbl-cap: "Baseline characteristics by previous HFH within 3 months"
 #| tbl-pos: "H"
 
-basetabfunc(data = rsdata, stratavar = "sos_prevhfh3mo", novars = c("sos_prevhfh3mo"))
+basetabfunc(data = rsdata, stratavar = "sos_prevhfh3mo", novars = c("sos_prevhfh3mo"), overall = T, tabheader = "Previous HFH within 3 months")
 ```
 
 ```{r}
@@ -261,8 +341,11 @@ basetabfunc(data = rsdata, stratavar = "sos_prevhfh3mo", novars = c("sos_prevhfh
 #| cache: true
 #| cache.comments: false
 #| dependson: basetabfunc
-#| tbl-cap: "Baseline characteristics by area of previous hospitalization (only for patients with a previous HFH withn 3 months)"
+#| tbl-cap: "Baseline characteristics by area of previous HFH within 3 months"
 #| tbl-pos: "H"
 
-basetabfunc(data = rsdata %>% filter(sos_prevhfh3mo == "Yes"), stratavar = "sos_hospward_3mo", novars = c("sos_prevhfh1yr", "sos_hospward3mo", "sos_prevhfh3mo"))
+basetabfunc(
+  data = rsdata %>% filter(sos_prevhfh3mo == "Yes"), stratavar = "sos_hospward_3mo",
+  novars = c("sos_prevhfh1yr", "sos_hospward3mo", "sos_prevhfh3mo"), tabheader = "Area of previous HFH within 3 months"
+)
 ```

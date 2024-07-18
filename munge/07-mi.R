@@ -1,7 +1,7 @@
 # Impute missing values ---------------------------------------------------
 
 rsdatauseforimp <- rsdata %>%
-  select(lopnr, shf_indexdtm, !!!syms(modvars), contains(outvars$var), !!!syms(outvars$time), contains("sos_lm"))
+  select(lopnr, shf_indexdtm, !!!syms(modvars), contains(outvars$var), contains(outvars$time), contains("sos_lm"))
 
 noimpvars <- names(rsdatauseforimp)[!names(rsdatauseforimp) %in% modvars]
 

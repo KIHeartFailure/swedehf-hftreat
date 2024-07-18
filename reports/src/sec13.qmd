@@ -48,4 +48,4 @@ tab1yr <- rsdatatmp %>%
 ```
 
 The n (%) of patients on a stable dose of bisoprolol between baseline and 6 months and 1 year respectively
-who are not taking dapagliflozin and who would be eligible (not type I diabetes and eGFR $>=$ 25) (2021-2023) is `r tab6mo %>% pull(np)` and `r tab1yr %>% pull(np)` respectively. 
+who are not taking dapagliflozin and who would be eligible (not type I diabetes and eGFR $>=$ 25) (2021-2023) is `r tab6mo %>% pull(np)` and `r tab1yr %>% pull(np)` respectively. eGFR and type I diabetes is assumed to be the same at 6 months as at the 1 year follow-up. 

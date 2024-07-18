@@ -3,7 +3,7 @@
 #| label: tbl-sec6-1
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 6 - n (%) taking Beta-blocker, MRA and SGLT2i 2021-2023"
+#| tbl-cap: "Secondary objective 6 - Patients taking Beta-blocker, MRA and SGLT2i 2021-2023"
 #| tbl-pos: "H"
 
 elvars <- names(rsdata)[str_detect(names(rsdata), "_cateli")]
@@ -11,6 +11,19 @@ elvars <- names(rsdata)[str_detect(names(rsdata), "_cateli")]
 rsdatatmp <- rsdata %>%
   filter(shf_indexyear_cat == "2021-2023") %>%
   mutate(smb = factor(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0), levels = 0:1, labels = c("No", "Beta-blocker + MRA + SGLT2i")))
+
+tabn <- rsdatatmp %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    strata = "N",
+    lev = ""
+  ) %>%
+  select(strata, lev, np)
 
 tab <- rsdatatmp %>%
   count(smb) %>%
@@ -52,7 +65,7 @@ tabtmp <- lapply(elvars,
 )
 tabtmp <- bind_rows(tabtmp)
 
-tab <- bind_rows(tab, tabtmp)
+tab <- bind_rows(tabn, tab, tabtmp)
 
 tab <- tab %>%
   mutate(
@@ -76,7 +89,7 @@ tab <- left_join(tab,
   ) %>%
   select(Variable, np)
 
-colnames(tab) <- c("Strata", "n (%)")
+colnames(tab) <- c("Strata", "Beta-blocker+MRA+SGLT2i")
 
 # excel
 if (output) {
@@ -96,7 +109,15 @@ tab <- tab %>%
 default_kable(tab,
   escape = FALSE,
   scale_down = F
-)
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n (%)."
+    )
+  ) %>%
+  row_spec(1, hline_after = T)
 ```
 
 ```{r}
@@ -104,7 +125,7 @@ default_kable(tab,
 #| cache: true
 #| cache.comments: false
 #| dependson: tbl-sec6-1
-#| tbl-cap: "Secondary objective 6 - Doses by ATC for patients taking Beta-blocker, MRA and SGLT2i 2021-2023"
+#| tbl-cap: "Secondary objective 6 - Doses by molecule for patients taking Beta-blocker, MRA and SGLT2i 2021-2023"
 #| tbl-pos: "H"
 
 elvars2 <- c(NA, elvars)
@@ -155,7 +176,7 @@ sec6func2 <- function(byvar, medvar) {
         n = n()
       ) %>%
       mutate(
-        out = paste0(n, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
+        out = paste0(n, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
         out = case_when(
           n == 0 ~ "-",
           n < 10 ~ "<10",
@@ -227,7 +248,11 @@ taball <- taball %>%
   arrange(order) %>%
   select(var, atcvar, Variable, out)
 
-colnames(taball) <- c("Medication", "ATC", "Strata", "n, median [minimum, q1, q3, maximum], mean (standard deviation)")
+taball <- left_join(taball, lmvarsub %>% select(-med), by = c("atcvar" = "atc")) %>%
+  mutate(atcvar = sub) %>%
+  select(-sub)
+
+colnames(taball) <- c("Medication", "Molecule", "Strata", "Daily dose")
 
 # excel
 if (output) {
@@ -247,5 +272,12 @@ taball <- taball %>%
 default_kable(taball,
   escape = FALSE,
   scale_down = T
-)
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n, median [minimum, q1, q3, maximum], mean (standard deviation)."
+    )
+  )
 ```

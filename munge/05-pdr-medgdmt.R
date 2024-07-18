@@ -70,14 +70,14 @@ lmgdmt3 <- lmgdmt2 %>%
   filter(diff >= -365 & diff <= 426) %>% # added 428 for the discontinuation calc, add - 365 for sequence calculation
   mutate(
     med = case_when(
-      str_detect(ATC, paste0("^(", global_atc_rasiarni, ")")) ~ "rasiarni",
-      str_detect(ATC, paste0("^(", global_atc_bbl, ")")) ~ "bbl",
-      str_detect(ATC, paste0("^(", global_atc_mra, ")")) ~ "mra",
-      str_detect(ATC, paste0("^(", global_atc_sglt2i, ")")) ~ "sglt2i",
-      str_detect(ATC, "^C01DA") ~ "nitrate",
-      str_detect(ATC, "^C01AA05") ~ "digoxin",
-      str_detect(ATC, "^C01EB17") ~ "ivabradin",
-      str_detect(ATC, "^C03C") ~ "loopdiuretics"
+      str_detect(ATC, paste0("^(", lmvars$atc[1], ")")) ~ lmvars$var[1],
+      str_detect(ATC, paste0("^(", lmvars$atc[2], ")")) ~ lmvars$var[2],
+      str_detect(ATC, paste0("^(", lmvars$atc[3], ")")) ~ lmvars$var[3],
+      str_detect(ATC, paste0("^(", lmvars$atc[4], ")")) ~ lmvars$var[4],
+      str_detect(ATC, paste0("^(", lmvars$atc[6], ")")) ~ lmvars$var[6],
+      str_detect(ATC, paste0("^(", lmvars$atc[7], ")")) ~ lmvars$var[7],
+      str_detect(ATC, paste0("^(", lmvars$atc[8], ")")) ~ lmvars$var[8],
+      str_detect(ATC, paste0("^(", lmvars$atc[9], ")")) ~ lmvars$var[9]
     )
   ) %>%
   filter(!is.na(med))
