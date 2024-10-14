@@ -3,7 +3,7 @@
 #| label: tbl-sec2
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 2 - n (%) >= 80% adherence during the first year"
+#| tbl-cap: "Adherence"
 #| tbl-pos: "H"
 
 sec2func <- function(medvar, byvar = NULL, byvarname) {
@@ -52,7 +52,11 @@ sec2func <- function(medvar, byvar = NULL, byvarname) {
   }
 }
 
-treatvarsadh <- c("sos_lmadhere_bbl_cat", "sos_lmadhere_rasiarni_cat", "sos_lmadhere_mra_cat", "sos_lmadhere_sglt2i_cat")
+treatvarsadh <- c(
+  "sos_lmadhere_bbl_cat",
+  "sos_lmadhere_rasiarni_cat", "sos_lmadhere_acei_cat", "sos_lmadhere_arb_cat", "sos_lmadhere_arni_cat",
+  "sos_lmadhere_mra_cat", "sos_lmadhere_sglt2i_cat"
+)
 
 sec2func_outer <- function(byvar, byvarname) {
   out <- lapply(treatvarsadh,
@@ -73,7 +77,9 @@ age <- sec2func_outer(byvar = "shf_age_cat", byvarname = "Age")
 
 sex <- sec2func_outer(byvar = "shf_sex", byvarname = "")
 
-cci <- sec2func_outer(byvar = "sos_com_charlsonci_cat", byvarname = "CCI")
+egfr <- sec2func_outer(byvar = "shf_gfrckdepi_cat", byvarname = "eGFR")
+
+cci <- sec2func_outer(byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index")
 
 meds <- sec2func_outer(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
@@ -94,7 +100,7 @@ tabn <- rsdata %>%
   select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
   pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
 
-taball <- bind_rows(tabn, overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
+taball <- bind_rows(tabn, overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, egfr, cci, meds)
 
 taball <- taball %>%
   mutate(
@@ -103,9 +109,12 @@ taball <- taball %>%
     Medication = factor(case_when(
       Medication == "bbl" ~ 1,
       Medication == "rasiarni" ~ 2,
-      Medication == "mra" ~ 3,
-      Medication == "sglt2i" ~ 4,
-    ), levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "SGLT2i"))
+      Medication == "acei" ~ 3,
+      Medication == "arb" ~ 4,
+      Medication == "arni" ~ 5,
+      Medication == "mra" ~ 6,
+      Medication == "sglt2i" ~ 7,
+    ), levels = 1:7, labels = c("Beta-blocker", "ACEi/ARB/ARNi", "ACEi", "ARB", "ARNi", "MRA", "SGLT2i"))
   )
 
 # excel
@@ -132,9 +141,9 @@ default_kable(taball,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Presented with n (%).",
-      "The denominator in the percent calculation is the number of patients taking the respective medication in each strata."
-    )
+      "Presented with n (%). The denominator in the percent calculation is the number of patients taking the respective medication in each strata."
+    ),
+    threeparttable = T
   ) %>%
   row_spec(1, hline_after = T)
 ```

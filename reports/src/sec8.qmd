@@ -1,0 +1,43 @@
+```{r}
+#| label: tbl-sec8-aceiarbarni
+#| cache: true
+#| cache.comments: false
+#| dependson: sec7func
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ACEi/ARB/ARNi+MRA+SGLT2i) by characteristics (2021-2023)"
+#| tbl-pos: "H"
+
+sec7func(medvar = "smbaceiarbarni", subvars = tabvarsel, scaledownin = T)
+```
+
+```{r}
+#| label: tbl-sec8-aceiarni
+#| cache: true
+#| cache.comments: false
+#| dependson: sec7func
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ACEi/ARNi+MRA+SGLT2i) by characteristics (2021-2023)"
+#| tbl-pos: "H"
+
+sec7func(medvar = "smbaceiarni", subvars = tabvarsel, scaledownin = T)
+```
+
+```{r}
+#| label: tbl-sec8-acei
+#| cache: true
+#| cache.comments: false
+#| dependson: sec7func
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ACEi+MRA+SGLT2i) by characteristics (2021-2023)"
+#| tbl-pos: "H"
+
+sec7func(medvar = "smbacei", subvars = tabvarsel, scaledownin = T)
+```
+
+```{r}
+#| label: tbl-sec8-arni
+#| cache: true
+#| cache.comments: false
+#| dependson: sec7func
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ARNi+MRA+SGLT2i) by characteristics (2021-2023)"
+#| tbl-pos: "H"
+
+sec7func(medvar = "smbarni", subvars = tabvarsel, scaledownin = T)
+```

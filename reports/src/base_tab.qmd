@@ -346,6 +346,6 @@ basetabfunc(data = rsdata, stratavar = "sos_prevhfh3mo", novars = c("sos_prevhfh
 
 basetabfunc(
   data = rsdata %>% filter(sos_prevhfh3mo == "Yes"), stratavar = "sos_hospward_3mo",
-  novars = c("sos_prevhfh1yr", "sos_hospward3mo", "sos_prevhfh3mo"), tabheader = "Area of previous HFH within 3 months"
+  novars = c("sos_prevhfh1yr", "sos_hospward_3mo", "sos_prevhfh3mo"), tabheader = "Area of previous HFH within 3 months"
 )
 ```

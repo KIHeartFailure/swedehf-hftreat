@@ -8,9 +8,9 @@ rsdatatmp <- rsdata %>%
   filter(shf_indexyear_cat == "2021-2023") %>%
   mutate(dapabiso = ATC_sos_lm_sglt2i == "A10BK01" & ATC_sos_lm_bbl == "C07AB07" & sos_lm_mra == "Yes")
 
-tab <- rsdatatmp %>%
+tabtot <- rsdatatmp %>%
   count(dapabiso) %>%
-  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), "%)")) %>%
   mutate(
     np = case_when(
       n == 0 ~ "-",
@@ -21,19 +21,19 @@ tab <- rsdatatmp %>%
   filter(dapabiso)
 ```
 
-The number (%) of patients 2021-2023 taking dapagliflozin, bisoprolol and a MRA concomitantly is `r tab %>% pull(np)`. 
+The number (%) of patients 2021-2023 taking dapagliflozin, bisoprolol and a MRA concomitantly is `r tabtot %>% pull(np)`. 
 
 ```{r}
 #| label: tbl-sec14-2
 #| cache: true
 #| cache.comments: false
 #| dependson: sec14-1
-#| tbl-cap: "Secondary objective 14 - Dosage by molecule for patients taking dapagliflozin, bisoprolol and MRA 2021-2023"
+#| tbl-cap: "N (%) and dosage by molecule for patients taking dapagliflozin, bisoprolol and MRA 2021-2023"
 #| tbl-pos: "H"
 
 sec14func <- function(medvar) {
   tab <- rsdatatmp %>%
-    filter(!is.na(!!sym(paste0("dose_sos_lm_", medvar)))) %>%
+    filter(!is.na(!!sym(paste0("dose_sos_lm_", medvar))) & dapabiso) %>%
     group_by(!!sym(paste0("ATC_sos_lm_", medvar))) %>%
     reframe(
       med = quantile(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T, probs = c(0.5)),
@@ -43,10 +43,11 @@ sec14func <- function(medvar) {
       sd = sd(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
       min = min(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
       max = max(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
-      n = n()
+      n = n(),
+      np = paste0(n, " (", fn(n / tabtot %>% pull(n) * 100, 1), ")")
     ) %>%
     mutate(
-      out = paste0(n, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
+      out = paste0(np, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
       out = case_when(
         n == 0 ~ "-",
         n < 10 ~ "<10",
@@ -100,7 +101,7 @@ default_kable(tab,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Presented with n, median [minimum, q1, q3, maximum], mean (standard deviation)."
+      "Presented with n (%), median [minimum, q1, q3, maximum], mean (standard deviation)."
     )
   )
 ```

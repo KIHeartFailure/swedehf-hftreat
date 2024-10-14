@@ -17,6 +17,7 @@ rsdata <- create_sosvar(
   type = "out",
   name = "hosphfadhere",
   diakod = global_hficd,
+  stoptime = global_followup,
   censdate = censdtm,
   valsclass = "fac",
   warnings = FALSE

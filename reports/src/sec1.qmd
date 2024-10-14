@@ -131,13 +131,12 @@ outcomesfunc_outer2 <- function(byvar, byvarname, novars = NULL) {
 }
 ```
 
-\blandscape
 ```{r}
 #| label: tbl-sec1
 #| cache: true
 #| cache.comments: false
 #| dependson: outcomesfunc
-#| tbl-cap: "Secondary objective 1 - Association between outcomes and therapy"
+#| tbl-cap: "Association between therapy and outcomes"
 
 overall <- outcomesfunc_outer(byvar = NULL, lev = NULL, byvarname = "Overall", novars = NULL)
 
@@ -149,11 +148,13 @@ age <- outcomesfunc_outer2(byvar = "shf_age_cat", byvarname = "Age")
 
 sex <- outcomesfunc_outer2(byvar = "shf_sex", byvarname = "")
 
-cci <- outcomesfunc_outer2(byvar = "sos_com_charlsonci_cat", byvarname = "CCI")
+egfr <- outcomesfunc_outer2(byvar = "shf_gfrckdepi_cat", byvarname = "eGFR")
+
+cci <- outcomesfunc_outer2(byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index")
 
 meds <- outcomesfunc_outer2(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
-outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
+outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, egfr, cci, meds)
 
 if (output) {
   make_one_xlsxsheet(outall)
@@ -175,11 +176,12 @@ default_kable(outall,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Abbreviations: py, person-years; HR, Hazard Ratio"
+      "Abbreviations: py, person-years; HR, Hazard Ratio; CVM, Cardiovascular mortality; HFH, Heart failure hospitalisation"
     ),
     threeparttable = T
   )
 ```
+
 \elandscape
 
 ```{r}
@@ -271,7 +273,7 @@ kmfunc <- function(time, event, eventname) {
 #| cache: true
 #| cache.comments: false
 #| dependson: kmfunc
-#| fig-cap: "Secondary objective 1 - Cumulative incidence"
+#| fig-cap: "Association between therapy and outcomes - Cumulative incidence curves"
 #| fig-subcap: !expr outvars$name
 #| layout-ncol: 2
 #| layout-nrow: 2

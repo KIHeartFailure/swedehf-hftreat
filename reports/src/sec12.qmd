@@ -40,7 +40,7 @@ The number (%) of patients 2021-2023 taking dapagliflozin and bisoprolol and rem
 #| cache: true
 #| cache.comments: false
 #| dependson: sec12-1
-#| tbl-cap: "Secondary objective 12 - Change in dosage for patients taking dapagliflozin and bisoprolol at baseline and 6 months and 1 year 2021-2023"
+#| tbl-cap: "Change in dosage for patients taking dapagliflozin and bisoprolol at baseline and 6 months and 1 year 2021-2023"
 #| tbl-pos: "H"
 
 rsdatatmp <- rsdatatmp %>%
@@ -106,10 +106,10 @@ tab1yrn <- rsdatatmp %>%
   )
 tab1yr <- rbind(tab1yrn, tab1yr) %>% select(dosechangebbl_1yr, np)
 
-colnames(tab6mo) <- c("Change in Beta-blocker dose", "6 months")
-colnames(tab1yr) <- c("Change in Beta-blocker dose", "1 year")
+colnames(tab6mo) <- c("Change in Bisoprolol dose", "6 months")
+colnames(tab1yr) <- c("Change in Bisoprolol dose", "1 year")
 
-tabboth <- full_join(tab6mo, tab1yr, by = c("Change in Beta-blocker dose"))
+tabboth <- full_join(tab6mo, tab1yr, by = c("Change in Bisoprolol dose"))
 
 # excel
 if (output) {

@@ -2,18 +2,18 @@
 #| label: tbl-sec10
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 10 - Association between patient characteristics and discontinuation at 1 year"
+#| tbl-cap: "Association between patient characteristics and discontinuation at 1 year"
 #| tbl-pos: "H"
 
 predictorsfunc <- function(medvar) {
   tabn <- rsdata %>%
-    filter(!!sym(paste0("sos_lm_", medvar)) == "Yes" & shf_indexyear_cat == "2021-2023") %>%
+    filter(!!sym(paste0("sos_lm_", medvar)) == "Yes" & shf_indexyear_cat == "2021-2023" & sos_outtime_death >= 426) %>%
     count(!!sym(paste0("fu_sos_lm_", medvar))) %>%
     mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
     filter(!!sym(paste0("fu_sos_lm_", medvar)) == 0)
 
   impdata <- mice::filter(imprsdata, rsdata %>%
-    mutate(filt = !!sym(paste0("sos_lm_", medvar)) == "Yes" & shf_indexyear_cat == "2021-2023") %>% pull(filt))
+    mutate(filt = !!sym(paste0("sos_lm_", medvar)) == "Yes" & shf_indexyear_cat == "2021-2023" & sos_outtime_death >= 426) %>% pull(filt))
   # adjusted
   logreg <- with(impdata, glm(
     formula(paste0(
@@ -86,13 +86,13 @@ predictorsfunc <- function(medvar) {
     )
 }
 
-tab <- lapply(c("bbl", "rasiarni", "mra", "sglt2i"),
+tab <- lapply(c("bbl", "rasiarni", "acei", "arb", "arni", "mra", "sglt2i"),
   FUN = predictorsfunc
 )
 tab <- bind_rows(tab, .id = "id")
 
 tab <- tab %>%
-  mutate(id = factor(id, levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "SGLT2i")))
+  mutate(id = factor(id, levels = 1:7, labels = c("Beta-blocker", "ACEI/ARB/ARNi", "ACEI", "ARB", "ARNi", "MRA", "SGLT2i")))
 
 tab2 <- pivot_wider(tab, values_from = "orci", names_from = "id")
 
@@ -112,6 +112,6 @@ default_kable(tab2,
   escape = FALSE,
   scale_down = T
 ) %>%
-  add_header_above(c(" " = 1, "Adjusted Odds Ratio (95% CI), p-value" = 4)) %>%
+  add_header_above(c(" " = 1, "Adjusted Odds Ratio (95% CI), p-value" = 7)) %>%
   row_spec(1, hline_after = T)
 ```

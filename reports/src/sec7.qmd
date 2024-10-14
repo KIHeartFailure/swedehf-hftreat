@@ -3,44 +3,107 @@
 #| cache: true
 #| cache.comments: false
 
+elvars <- names(rsdata)[str_detect(names(rsdata), "_cateli")]
+
 rsdatatmp <- rsdata %>%
-  filter(shf_indexyear_cat == "2021-2023")
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(
+    smbaceiarni = factor(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & (sos_lm_acei == "Yes" | sos_lm_arni == "Yes"), 1, 0),
+      levels = 0:1, labels = c("No", "Beta-blocker+ACEi/ARNi+MRA+SGLT2i")
+    ),
+    smbaceiarbarni = factor(
+      if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" &
+        (sos_lm_acei == "Yes" | sos_lm_arb == "Yes" | sos_lm_arni == "Yes"), 1, 0),
+      levels = 0:1, labels = c("No", "Beta-blocker+ACEi/ARB/ARNi+MRA+SGLT2i")
+    ),
+    smbacei = factor(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_acei == "Yes", 1, 0),
+      levels = 0:1, labels = c("No", "Beta-blocker+ACEi+MRA+SGLT2i")
+    ),
+    smbarni = factor(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_arni == "Yes", 1, 0),
+      levels = 0:1, labels = c("No", "Beta-blocker+ARNi+MRA+SGLT2i")
+    )
+  )
 
-sec7func <- function(data = rsdatatmp, colvar, colname) {
-  tab <- data %>%
-    filter(!is.na(sos_lm_gdmttype) & !is.na(!!sym(colvar))) %>%
-    group_by(!!sym(colvar)) %>%
-    count(sos_lm_gdmttype, .drop = F) %>%
+tabn <- rsdatatmp %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    strata = "N",
+    lev = ""
+  ) %>%
+  select(strata, lev, np)
+
+sec7func <- function(medvar, subvars = elvars, scaledownin = T) {
+  tab <- rsdatatmp %>%
+    count(!!sym(medvar)) %>%
     mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
-    ungroup() %>%
     mutate(
       np = case_when(
+        n == 0 ~ "-",
         n < 10 ~ "<10",
         TRUE ~ np
-      )
+      ),
+      strata = "Overall",
+      lev = ""
     ) %>%
-    select(sos_lm_gdmttype, np, !!sym(colvar)) %>%
-    pivot_wider(values_from = np, names_from = c(!!sym(colvar))) %>%
-    rename(Medication = sos_lm_gdmttype) %>%
-    arrange(Medication)
+    filter(!!sym(medvar) != "No") %>%
+    select(strata, lev, np)
 
-  taball <- data %>%
-    filter(!is.na(sos_lm_gdmttype) & !is.na(!!sym(colvar))) %>%
-    count(!!sym(colvar)) %>%
-    mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
-    ungroup() %>%
+  sec7func_inner <- function(byvar) {
+    tab <- rsdatatmp %>%
+      filter(!is.na(!!sym(byvar))) %>%
+      group_by(!!sym(byvar)) %>%
+      count(!!sym(medvar)) %>%
+      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      mutate(
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        ),
+        strata = byvar
+      ) %>%
+      filter(!!sym(medvar) != "No") %>%
+      rename(lev = !!sym(byvar)) %>%
+      select(strata, lev, np) %>%
+      ungroup()
+  }
+
+  tabtmp <- lapply(subvars,
+    FUN = sec7func_inner
+  )
+  tabtmp <- bind_rows(tabtmp)
+
+  tab <- bind_rows(tabn, tab, tabtmp)
+
+  tab <- tab %>%
     mutate(
-      sos_lm_gdmttype = "N",
-      np = case_when(
-        n < 10 ~ "<10",
-        TRUE ~ np
-      )
-    ) %>%
-    select(sos_lm_gdmttype, np, !!sym(colvar)) %>%
-    pivot_wider(values_from = np, names_from = c(!!sym(colvar))) %>%
-    rename(Medication = sos_lm_gdmttype)
+      # if recoding or categorizing will still get org label
+      var_tmp = str_replace_all(strata, "(_cateli)", ""),
+      var_tmp = str_replace_all(var_tmp, "(_cat)", "")
+    )
 
-  tab <- bind_rows(taball, tab)
+  tab <- left_join(tab,
+    metavars %>%
+      select(variable, label, unit),
+    by = c("var_tmp" = "variable")
+  ) %>%
+    mutate(
+      Variable = coalesce(label, var_tmp),
+      Variable = if_else(!is.na(unit),
+        paste0(Variable, " (", unit, ")"),
+        Variable
+      ),
+      Variable = paste0(Variable, " ", lev),
+      order = 1:n()
+    ) %>%
+    select(Variable, np)
+
+  colnames(tab) <- c("Strata", levels(rsdatatmp %>% pull(!!sym(medvar)))[2])
 
   # excel
   if (output) {
@@ -48,93 +111,71 @@ sec7func <- function(data = rsdatatmp, colvar, colname) {
   }
 
   colnames(tab) <- sanitize_text(colnames(tab))
-  colnames(tab) <- str_replace_all(colnames(tab), fixed("$>$="), "$\\geq$")
-  colnames(tab) <- str_replace_all(colnames(tab), fixed("$<$="), "$\\leq$")
 
-  nlevs <- nlevels(data %>% pull(!!sym(colvar)))
-
-  header <- c(1, nlevs)
-  names(header) <- c(" ", colname)
+  tab <- tab %>%
+    mutate(
+      Strata = sanitize_text(Strata),
+      Strata = str_replace_all(Strata, fixed("²"), "\\textsuperscript{2}"),
+      Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+      Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+    )
 
   default_kable(tab,
     escape = FALSE,
-    scale_down = T,
-    font_size = 7
+    scale_down = scaledownin
   ) %>%
     footnote(
       footnote_order = c("general", "symbol", "alphabet"),
       general_title = "",
       general = c(
         "Presented with n (%)."
-      )
+      ),
+      threeparttable = T
     ) %>%
-    add_header_above(header = header) %>%
     row_spec(1, hline_after = T)
 }
 ```
 
 ```{r}
-#| label: tbl-sec7-sysbp
+#| label: tbl-sec7-aceiarbarni
 #| cache: true
 #| cache.comments: false
 #| dependson: sec7func
-#| tbl-cap: "Secondary objective 7 by systolic blood pressure (2021-2023)"
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ACEi/ARB/ARNi+MRA+SGLT2i) by eligibility (2021-2023)"
 #| tbl-pos: "H"
 
-sec7func(colvar = "shf_bpsys_cateli", colname = "Systolic blood pressure (mmHg)")
+sec7func(medvar = "smbaceiarbarni")
 ```
 
 ```{r}
-#| label: tbl-sec7-heartrate
+#| label: tbl-sec7-aceiarni
 #| cache: true
 #| cache.comments: false
 #| dependson: sec7func
-#| tbl-cap: "Secondary objective 7 by heart rate (2021-2023)"
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ACEi/ARNi+MRA+SGLT2i) by eligibility (2021-2023)"
 #| tbl-pos: "H"
 
-sec7func(colvar = "shf_heartrate_cateli", colname = "Heart rate (beats/min)")
+sec7func(medvar = "smbaceiarni", scaledownin = F)
 ```
 
 ```{r}
-#| label: tbl-sec7-egfr
+#| label: tbl-sec7-acei
 #| cache: true
 #| cache.comments: false
 #| dependson: sec7func
-#| tbl-cap: "Secondary objective 7 by eGFR (2021-2023)"
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ACEi+MRA+SGLT2i) by eligibility (2021-2023)"
 #| tbl-pos: "H"
 
-sec7func(colvar = "shf_gfrckdepi_cateli", colname = "eGFR (mL/min/1.73 m2)")
+sec7func(medvar = "smbacei", scaledownin = F)
 ```
 
 ```{r}
-#| label: tbl-sec7-potassium
+#| label: tbl-sec7-arni
 #| cache: true
 #| cache.comments: false
 #| dependson: sec7func
-#| tbl-cap: "Secondary objective 7 by potassium (2021-2023)"
+#| tbl-cap: "Patients eligible for a SPC (Beta-blocker+ARNi+MRA+SGLT2i) by eligibility (2021-2023)"
 #| tbl-pos: "H"
 
-sec7func(colvar = "shf_potassium_cateli", colname = "Potassium (mmol/L)")
-```
-
-```{r}
-#| label: tbl-sec7-dmtype1
-#| cache: true
-#| cache.comments: false
-#| dependson: sec7func
-#| tbl-cap: "Secondary objective 7 by diabetes type I (2021-2023)"
-#| tbl-pos: "H"
-
-sec7func(colvar = "shf_diabetestypeeli", colname = "Diabetes type I")
-```
-
-```{r}
-#| label: tbl-sec7-all
-#| cache: true
-#| cache.comments: false
-#| dependson: sec7func
-#| tbl-cap: "Secondary objective 7 by all eligibilty variables (2021-2023)"
-#| tbl-pos: "H"
-
-sec7func(colvar = "elall", colname = "Overall eligibilty")
+sec7func(medvar = "smbarni", scaledownin = F)
 ```

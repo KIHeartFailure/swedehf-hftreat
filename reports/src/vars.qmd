@@ -69,7 +69,7 @@ vars <- vars %>%
     order = 1:n(),
     Code = case_when(
       var == "shf_sos_com_ihd" ~ ihdspec,
-      str_detect(var, "sos_prevhfh") ~ paste0("ICD:", str_replace_all(global_hficd, "\\|", ",")),
+      str_detect(var, "sos_prevhfh") ~ paste0("ICD:", str_remove_all(str_replace_all(str_remove(global_hficd, "\\| 4[^.]*$"), "\\|", ","), "\\]|\\[")),
       TRUE ~ Code
     ),
     Code = str_trim(Code),
@@ -117,7 +117,8 @@ vars <- vars %>%
     datasource = case_when(
       Variable == "eGFR" ~ "SwedeHF CKD-EPI 2021",
       Variable == "Anemia" ~ "SwedeHF Female Hb < 120 g/L/Male Hb < 130 g/L",
-      var == "sos_lm_gdmt" ~ "NPDR: RASi/ARNi, Beta-blocker, MRA, SGLT2i",
+      var == "sos_lm_gdmt" ~ "NPDR: ACEi/ARB/ARNi, Beta-blocker, MRA, SGLT2i",
+      var == "sos_lm_rasiarni" ~ "NPDR: ACEi/ARB/ARNi",
       var == "sos_lm_n_othermeds" ~ "NPDR: Number of unique ATC codes, excluding GDMT, on 2nd level (therapeutic subgroup)",
       var == "sos_hospward_3mo" ~ paste0(
         "NPR: If multiple hospitalizations exist precidence is given in the following order: ",
@@ -171,7 +172,7 @@ default_kable(vars,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Abbreviations: SwedeHF, The Swedish Heart Failure Registry; NPDR, National Prescribed Drug Register; NPR, The National Patient Register; LISA, Longitudinal integrated database for health insurance and labour market studies; RTP, Register of the Total Population; HF, Heart Failure"
+      "Abbreviations: SwedeHF, The Swedish Heart Failure Registry; NPDR, National Prescribed Drug Register; NPR, The National Patient Register; LISA, Longitudinal integrated database for health insurance and labour market studies; RTP, Register of the Total Population"
     ),
     alphabet = footnotetext,
     threeparttable = T

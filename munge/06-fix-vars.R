@@ -1,9 +1,37 @@
 # cut at 3 years
+# outcomes
+rsdata <- rsdata %>%
+  mutate(
+    sos_outtime_deathadhere = case_when(
+      sos_outtime_death <= 365 ~ NA_real_,
+      sos_outtime_death <= global_followup ~ sos_outtime_death - 365,
+      TRUE ~ global_followup
+    ),
+    sos_out_deathcvadhere = case_when(
+      is.na(sos_outtime_deathadhere) ~ NA_character_,
+      sos_outtime_death <= global_followup ~ as.character(sos_out_deathcv),
+      TRUE ~ "No"
+    ),
+    sos_outtime_hosphfadhere = case_when(
+      sos_outtime_hosphfadhere < 0 ~ NA_real_,
+      TRUE ~ sos_outtime_hosphfadhere
+    ),
+    sos_out_hosphfadhere = case_when(
+      is.na(sos_outtime_hosphfadhere) ~ NA_character_,
+      TRUE ~ as.character(sos_out_hosphfadhere)
+    ),
+    sos_out_deathcvhosphfadhere = ynfac(case_when(
+      is.na(sos_out_deathcvadhere) | is.na(sos_out_hosphfadhere) ~ NA_real_,
+      sos_out_deathcvadhere == "Yes" | sos_out_hosphfadhere == "Yes" ~ 1,
+      TRUE ~ 0
+    ))
+  )
+
 rsdata <- cut_surv(rsdata, sos_out_deathcvhosphf, sos_outtime_hosphf, global_followup, cuttime = FALSE, censval = "No")
 rsdata <- cut_surv(rsdata, sos_out_hosphf, sos_outtime_hosphf, global_followup, cuttime = TRUE, censval = "No")
 rsdata <- cut_surv(rsdata, sos_out_deathcv, sos_outtime_death, global_followup, cuttime = TRUE, censval = "No")
 
-treatvars <- paste0("sos_lm_", lmvars %>% filter(!is.na(atc)) %>% pull(var))
+treatvars <- c("sos_lm_rasiarni", paste0("sos_lm_", lmvars %>% filter(!is.na(atc)) %>% pull(var)))
 
 rsdata <- rsdata %>%
   mutate(
@@ -102,12 +130,10 @@ rsdata <- rsdata %>%
         ">=8"
       )
     ),
-    # outcomes
-    # sos_outtime_hosphfadhere = if_else(sos_outtime_hosphfadhere <= 0, NA_real_),
-    # sos_outtime_deathadhere = if_else(sos_outtime_death <= 365, NA_real_),
-    sos_out_deathcvhosphfadhere = ynfac(if_else(sos_out_deathcv == "Yes" | sos_out_hosphfadhere == "Yes", 1, 0)),
     # meds
     sos_lm_sglt2i = if_else(shf_indexyear <= 2020, 0, sos_lm_sglt2i),
+    sos_lm_rasiarni = if_else(sos_lm_acei == 1 | sos_lm_arb == 1 | sos_lm_arni == 1, 1, 0),
+    fu_sos_lm_rasiarni = if_else(fu_sos_lm_acei == 1 | fu_sos_lm_arb == 1 | fu_sos_lm_arni == 1, 1, 0),
     sos_lm_gdmt = factor(case_when(
       shf_indexyear <= 2020 ~ sos_lm_bbl + sos_lm_rasiarni + sos_lm_mra,
       shf_indexyear >= 2021 ~ sos_lm_bbl + sos_lm_rasiarni + sos_lm_mra + sos_lm_sglt2i
@@ -118,13 +144,11 @@ rsdata <- rsdata %>%
     sos_lm_gdmttype = factor(
       case_when(
         sos_lm_bbl == "No" & sos_lm_rasiarni == "No" & sos_lm_mra == "No" & sos_lm_sglt2i == "No" ~ 0,
-
         # Mono
         sos_lm_bbl == "Yes" & sos_lm_rasiarni == "No" & sos_lm_mra == "No" & sos_lm_sglt2i == "No" ~ 1,
         sos_lm_bbl == "No" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "No" & sos_lm_sglt2i == "No" ~ 2,
         sos_lm_bbl == "No" & sos_lm_rasiarni == "No" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "No" ~ 3,
         sos_lm_bbl == "No" & sos_lm_rasiarni == "No" & sos_lm_mra == "No" & sos_lm_sglt2i == "Yes" ~ 4,
-
         # Double
         sos_lm_bbl == "Yes" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "No" & sos_lm_sglt2i == "No" ~ 5,
         sos_lm_bbl == "Yes" & sos_lm_rasiarni == "No" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "No" ~ 6,
@@ -132,13 +156,11 @@ rsdata <- rsdata %>%
         sos_lm_bbl == "No" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "No" ~ 8,
         sos_lm_bbl == "No" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "No" & sos_lm_sglt2i == "Yes" ~ 9,
         sos_lm_bbl == "No" & sos_lm_rasiarni == "No" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes" ~ 10,
-
         # Tripple
         sos_lm_bbl == "Yes" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "No" ~ 11,
         sos_lm_bbl == "Yes" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "No" & sos_lm_sglt2i == "Yes" ~ 12,
         sos_lm_bbl == "Yes" & sos_lm_rasiarni == "No" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes" ~ 13,
         sos_lm_bbl == "No" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes" ~ 14,
-
         # Quadruple
         sos_lm_bbl == "Yes" & sos_lm_rasiarni == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes" ~ 15
       ),
@@ -146,38 +168,46 @@ rsdata <- rsdata %>%
       labels = c(
         "None",
         "Only Beta-blocker",
-        "Only RASi/ARNi",
+        "Only ACEi/ARB/ARNi",
         "Only MRA",
         "Only SGLT2i",
-        "Beta-blocker + RASi/ARNi",
+        "Beta-blocker + ACEi/ARB/ARNi",
         "Beta-blocker + MRA",
         "Beta-blocker + SGLT2i",
-        "RASi/ARNi + MRA",
-        "RASi/ARNi + SGLT2i",
+        "ACEi/ARB/ARNi + MRA",
+        "ACEi/ARB/ARNi + SGLT2i",
         "MRA + SGLT2i",
-        "Beta-blocker + RASi/ARNi + MRA",
-        "Beta-blocker + RASi/ARNi + SGLT2i",
+        "Beta-blocker + ACEi/ARB/ARNi + MRA",
+        "Beta-blocker + ACEi/ARB/ARNi + SGLT2i",
         "Beta-blocker + MRA + SGLT2i",
-        "RASi/ARNi + MRA + SGLT2i",
-        "Beta-blocker + RASi/ARNi + MRA + SGLT2i"
+        "ACEi/ARB/ARNi + MRA + SGLT2i",
+        "Beta-blocker + ACEi/ARB/ARNi + MRA + SGLT2i"
       )
     ),
+    sos_lmadhere_rasiarni = pmax(sos_lmadhere_acei, sos_lmadhere_arb, na.rm = T),
+    sos_lmadhere_rasiarni = pmax(sos_lmadhere_rasiarni, sos_lmadhere_arni, na.rm = T),
     sos_lmadhere_bbl = if_else(sos_lm_bbl == "No", NA_real_, sos_lmadhere_bbl),
     sos_lmadhere_mra = if_else(sos_lm_mra == "No", NA_real_, sos_lmadhere_mra),
     sos_lmadhere_rasiarni = if_else(sos_lm_rasiarni == "No", NA_real_, sos_lmadhere_rasiarni),
+    sos_lmadhere_acei = if_else(sos_lm_acei == "No", NA_real_, sos_lmadhere_acei),
+    sos_lmadhere_arb = if_else(sos_lm_arb == "No", NA_real_, sos_lmadhere_arb),
+    sos_lmadhere_arni = if_else(sos_lm_arni == "No", NA_real_, sos_lmadhere_arni),
     sos_lmadhere_sglt2i = if_else(sos_lm_sglt2i == "No", NA_real_, sos_lmadhere_sglt2i),
     sos_lmadhere_bbl_cat = factor(if_else(sos_lmadhere_bbl >= 80, 1, 0), levels = 0:1, labels = c("<80", ">=80")),
     sos_lmadhere_mra_cat = factor(if_else(sos_lmadhere_mra >= 80, 1, 0), levels = 0:1, labels = c("<80", ">=80")),
     sos_lmadhere_sglt2i_cat = factor(if_else(sos_lmadhere_sglt2i >= 80, 1, 0), levels = 0:1, labels = c("<80", ">=80")),
     sos_lmadhere_rasiarni_cat = factor(if_else(sos_lmadhere_rasiarni >= 80, 1, 0), levels = 0:1, labels = c("<80", ">=80")),
+    sos_lmadhere_acei_cat = factor(if_else(sos_lmadhere_acei >= 80, 1, 0), levels = 0:1, labels = c("<80", ">=80")),
+    sos_lmadhere_arb_cat = factor(if_else(sos_lmadhere_arb >= 80, 1, 0), levels = 0:1, labels = c("<80", ">=80")),
+    sos_lmadhere_arni_cat = factor(if_else(sos_lmadhere_arni >= 80, 1, 0), levels = 0:1, labels = c("<80", ">=80")),
     # fu only for dapa and biso
     fu_sos_lm_6mo = case_when(
-      censdtm < shf_indexdtm + 365 / 2 ~ NA_real_,
+      censdtm < shf_indexdtm + 244 ~ NA_real_,
       !is.na(dosefu_sos_lm_C07AB07_6mo) & !is.na(dosefu_sos_lm_A10BK01_6mo) ~ 1,
       TRUE ~ 0
     ),
     fu_sos_lm_1yr = case_when(
-      censdtm < shf_indexdtm + 365 ~ NA_real_,
+      censdtm < shf_indexdtm + 426 ~ NA_real_,
       !is.na(dosefu_sos_lm_C07AB07_1yr) & !is.na(dosefu_sos_lm_A10BK01_1yr) ~ 1,
       TRUE ~ 0
     )

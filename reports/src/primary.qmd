@@ -4,144 +4,87 @@
 #| cache: true
 #| cache.comments: false
 
-primaryfunc2 <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_cat") {
-  if (is.null(colvar)) {
-    tab <- data %>%
-      filter(!is.na(sos_lm_gdmttype)) %>%
-      group_by(!!sym(yearvar)) %>%
-      count(sos_lm_gdmttype) %>%
-      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
-      mutate(
-        np = case_when(
-          n < 10 ~ "<10",
-          TRUE ~ np
-        )
-      ) %>%
-      select(!!sym(yearvar), sos_lm_gdmttype, np) %>%
-      ungroup() %>%
-      pivot_wider(values_from = np, names_from = !!sym(yearvar)) %>%
-      rename(Medication = sos_lm_gdmttype) %>%
-      arrange(Medication)
-
-    taball <- data %>%
-      filter(!is.na(sos_lm_gdmttype)) %>%
-      count(!!sym(yearvar)) %>%
-      mutate(np = paste0(n)) %>%
-      mutate(
-        Medication = "N",
-        np = case_when(
-          n < 10 ~ "<10",
-          TRUE ~ np
-        )
-      ) %>%
-      select(!!sym(yearvar), Medication, np) %>%
-      pivot_wider(values_from = np, names_from = !!sym(yearvar)) %>%
-      arrange(Medication)
-
-    tab <- bind_rows(taball, tab)
-  } else {
-    tab <- data %>%
-      filter(!is.na(sos_lm_gdmttype) & !is.na(!!sym(colvar))) %>%
-      group_by(!!sym(yearvar), !!sym(colvar), .drop = F) %>%
-      count(sos_lm_gdmttype) %>%
-      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
-      ungroup() %>%
-      mutate(
-        np = case_when(
-          n < 10 ~ "<10",
-          TRUE ~ np
-        ),
-        np = if_else(str_detect(sos_lm_gdmttype, "SGLT2i") & !!sym(yearvar) %in% c("2016-2020", as.character(2016:2020)), NA_character_, np)
-      ) %>%
-      select(!!sym(yearvar), sos_lm_gdmttype, np, !!sym(colvar)) %>%
-      pivot_wider(values_from = np, names_from = c(!!sym(colvar), !!sym(yearvar))) %>%
-      rename(Medication = sos_lm_gdmttype) %>%
-      arrange(Medication)
-
-    taball <- data %>%
-      filter(!is.na(sos_lm_gdmttype) & !is.na(!!sym(colvar))) %>%
-      count(!!sym(yearvar), !!sym(colvar), drop = F) %>%
-      mutate(
-        np = paste0(n),
-        Medication = "N",
-        np = case_when(
-          n < 10 ~ "<10",
-          TRUE ~ np
-        )
-      ) %>%
-      select(!!sym(yearvar), Medication, np, !!sym(colvar)) %>%
-      pivot_wider(values_from = np, names_from = c(!!sym(colvar), !!sym(yearvar)))
-
-    tab <- bind_rows(taball, tab)
-
-    colnames(tab) <- str_remove_all(colnames(tab), "_2016-2020|_2021-2023")
-  }
-
-  # excel
-  if (output) {
-    make_one_xlsxsheet(tab)
-  }
-
-  colnames(tab) <- sanitize_text(colnames(tab))
-  colnames(tab) <- str_replace_all(colnames(tab), fixed("$>$="), "$\\geq$")
-  colnames(tab) <- str_replace_all(colnames(tab), fixed("$<$="), "$\\leq$")
-
-  tabprint <- default_kable(tab,
-    escape = FALSE,
-    scale_down = T,
-    font_size = 7
-  ) %>%
-    footnote(
-      footnote_order = c("general", "symbol", "alphabet"),
-      general_title = "",
-      general = c(
-        "Presented with n (%)."
-      )
-    ) %>%
-    row_spec(1, hline_after = T)
-
-  if (!is.null(colvar)) {
-    if (colvar != "shf_indexyear") {
-      nlevs <- nlevels(data %>% pull(!!sym(colvar)))
-      tabprint <- tabprint %>%
-        add_header_above(c(" " = 1, "2016-2020" = nlevs, "2021-2023" = nlevs))
-    }
-  }
-  tabprint
-}
-
 rsdata <- rsdata %>%
   mutate(
     # 2-way combinations
     sos_lm_bblrasiarni = ynfac(if_else(sos_lm_rasiarni == "Yes" & sos_lm_bbl == "Yes", 1, 0)),
+    sos_lm_bblacei = ynfac(if_else(sos_lm_acei == "Yes" & sos_lm_bbl == "Yes", 1, 0)),
+    sos_lm_bblarb = ynfac(if_else(sos_lm_arb == "Yes" & sos_lm_bbl == "Yes", 1, 0)),
+    sos_lm_bblarni = ynfac(if_else(sos_lm_arni == "Yes" & sos_lm_bbl == "Yes", 1, 0)),
     sos_lm_bblmra = ynfac(if_else(sos_lm_mra == "Yes" & sos_lm_bbl == "Yes", 1, 0)),
     sos_lm_bblsglt2i = ynfac(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes", 1, 0)),
     sos_lm_rasiarnimra = ynfac(if_else(sos_lm_rasiarni == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_aceimra = ynfac(if_else(sos_lm_acei == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_arbmra = ynfac(if_else(sos_lm_arb == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_arnimra = ynfac(if_else(sos_lm_arni == "Yes" & sos_lm_mra == "Yes", 1, 0)),
     sos_lm_rasiarnisglt2i = ynfac(if_else(sos_lm_rasiarni == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_aceisglt2i = ynfac(if_else(sos_lm_acei == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_arbsglt2i = ynfac(if_else(sos_lm_arb == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_arnisglt2i = ynfac(if_else(sos_lm_arni == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
     sos_lm_mrasglt2i = ynfac(if_else(sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
 
     # 3-way combinations
     sos_lm_bblrasiarnimra = ynfac(if_else(sos_lm_rasiarni == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_bblaceimra = ynfac(if_else(sos_lm_acei == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_bblarbmra = ynfac(if_else(sos_lm_arb == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_bblarnimra = ynfac(if_else(sos_lm_arni == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0)),
     sos_lm_bblrasiarnisglt2i = ynfac(if_else(sos_lm_rasiarni == "Yes" & sos_lm_bbl == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_bblaceisglt2i = ynfac(if_else(sos_lm_acei == "Yes" & sos_lm_bbl == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_bblarbsglt2i = ynfac(if_else(sos_lm_arb == "Yes" & sos_lm_bbl == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_bblarnisglt2i = ynfac(if_else(sos_lm_arni == "Yes" & sos_lm_bbl == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
     sos_lm_bblmrasglt2i = ynfac(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0)),
     sos_lm_rasiarnimrasglt2i = ynfac(if_else(sos_lm_rasiarni == "Yes" & sos_lm_sglt2i == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_aceimrasglt2i = ynfac(if_else(sos_lm_acei == "Yes" & sos_lm_sglt2i == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_arbmrasglt2i = ynfac(if_else(sos_lm_arb == "Yes" & sos_lm_sglt2i == "Yes" & sos_lm_mra == "Yes", 1, 0)),
+    sos_lm_arnimrasglt2i = ynfac(if_else(sos_lm_arni == "Yes" & sos_lm_sglt2i == "Yes" & sos_lm_mra == "Yes", 1, 0)),
 
     # 4-way combinations
     sos_lm_bblrasiarnimrasglt2i = ynfac(if_else(sos_lm_rasiarni == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_bblaceimrasglt2i = ynfac(if_else(sos_lm_acei == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_bblarbmrasglt2i = ynfac(if_else(sos_lm_arb == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
+    sos_lm_bblarnimrasglt2i = ynfac(if_else(sos_lm_arni == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_sglt2i == "Yes", 1, 0)),
   )
 
 medvars <- c(
-  "sos_lm_bbl", "sos_lm_rasiarni", "sos_lm_mra",
+  "sos_lm_bbl",
+  "sos_lm_rasiarni",
+  "sos_lm_acei",
+  "sos_lm_arb",
+  "sos_lm_arni",
+  "sos_lm_mra",
   "sos_lm_sglt2i",
-  "sos_lm_bblrasiarni", "sos_lm_bblmra",
+  "sos_lm_bblrasiarni",
+  "sos_lm_bblacei",
+  "sos_lm_bblarb",
+  "sos_lm_bblarni",
+  "sos_lm_bblmra",
   "sos_lm_bblsglt2i",
   "sos_lm_rasiarnimra",
+  "sos_lm_aceimra",
+  "sos_lm_arbmra",
+  "sos_lm_arnimra",
   "sos_lm_rasiarnisglt2i",
+  "sos_lm_aceisglt2i",
+  "sos_lm_arbsglt2i",
+  "sos_lm_arnisglt2i",
   "sos_lm_mrasglt2i",
   "sos_lm_bblrasiarnimra",
+  "sos_lm_bblaceimra",
+  "sos_lm_bblarbmra",
+  "sos_lm_bblarnimra",
   "sos_lm_bblrasiarnisglt2i",
+  "sos_lm_bblaceisglt2i",
+  "sos_lm_bblarbsglt2i",
+  "sos_lm_bblarnisglt2i",
   "sos_lm_bblmrasglt2i",
-  "sos_lm_rasiarnimrasglt2i", "sos_lm_bblrasiarnimrasglt2i"
+  "sos_lm_rasiarnimrasglt2i",
+  "sos_lm_aceimrasglt2i",
+  "sos_lm_arbmrasglt2i",
+  "sos_lm_arnimrasglt2i",
+  "sos_lm_bblrasiarnimrasglt2i",
+  "sos_lm_bblaceimrasglt2i",
+  "sos_lm_bblarbmrasglt2i",
+  "sos_lm_bblarnimrasglt2i"
 )
 
 primaryfunc_inner <- function(data, colvar, medvar, yearvar) {
@@ -191,7 +134,6 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
 
   if (is.null(colvar)) {
     taball <- data %>%
-      filter(!is.na(sos_lm_gdmttype)) %>%
       count(!!sym(yearvar)) %>%
       mutate(np = paste0(n)) %>%
       mutate(
@@ -226,7 +168,10 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
     mutate(
       Medication = str_remove_all(Medication, "sos_lm_"),
       Medication = str_replace_all(Medication, "bbl", "Beta-blocker "),
-      Medication = str_replace_all(Medication, "rasiarni", "RASi/ARNi "),
+      Medication = str_replace_all(Medication, "rasiarni", "ACEi/ARB/ARNi "),
+      Medication = str_replace_all(Medication, "acei", "ACEi "),
+      Medication = str_replace_all(Medication, "arb", "ARB "),
+      Medication = str_replace_all(Medication, "arni", "ARNi "),
       Medication = str_replace_all(Medication, "mra", "MRA "),
       Medication = str_replace_all(Medication, "sglt2i", "SGLT2i "),
       Medication = str_squish(Medication),
@@ -255,9 +200,9 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
       footnote_order = c("general", "symbol", "alphabet"),
       general_title = "",
       general = c(
-        "Presented with n (%).",
-        "The groups are not mutually exclusive and the percent will therfore not sum to 100."
-      )
+        "Presented with n (%). The groups are not mutually exclusive and the percent will therfore not sum to 100."
+      ),
+      threeparttable = T
     ) %>%
     row_spec(1, hline_after = T)
 
@@ -277,31 +222,18 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i"
 #| tbl-pos: "H"
 
 primaryfunc()
 ```
 
 ```{r}
-#| label: tbl-primary2
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Primary objective (mutually exclusive groups)"
-#| tbl-pos: "H"
-
-primaryfunc2()
-```
-
-\clearpage
-
-```{r}
 #| label: tbl-primary-year
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by year"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by year"
 #| tbl-pos: "H"
 
 rsdatatmp <- rsdata %>%
@@ -310,158 +242,78 @@ primaryfunc(data = rsdatatmp, yearvar = "shf_indexyear")
 ```
 
 ```{r}
-#| label: tbl-primary-year2
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Primary objective by year (mutually exclusive groups)"
-#| tbl-pos: "H"
-
-rsdatatmp <- rsdata %>%
-  mutate(shf_indexyear = factor(shf_indexyear))
-primaryfunc2(data = rsdatatmp, yearvar = "shf_indexyear")
-```
-
-\clearpage
-
-```{r}
 #| label: tbl-primary-prevhfhf
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by previous HFH within 3 months"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by previous HFH within 3 months"
 #| tbl-pos: "H"
 
 primaryfunc(colvar = "sos_prevhfh3mo")
 ```
 
 ```{r}
-#| label: tbl-primary-prevhfhf2
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Primary objective by previous HFH within 3 months (mutually exclusive groups)"
-#| tbl-pos: "H"
-
-primaryfunc2(colvar = "sos_prevhfh3mo")
-```
-
-\clearpage
-
-```{r}
 #| label: tbl-primary-hospward
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by area of previous HFH within 3 months"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by area of previous HFH within 3 months"
 #| tbl-pos: "H"
 
 primaryfunc(colvar = "sos_hospward_3mo")
 ```
 
 ```{r}
-#| label: tbl-primary-hospward2
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Primary objective by area of previous HFH within 3 months (mutually exclusive groups)"
-#| tbl-pos: "H"
-
-primaryfunc2(colvar = "sos_hospward_3mo")
-```
-
-\clearpage
-
-```{r}
 #| label: tbl-primary-age
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by age"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by age"
 #| tbl-pos: "H"
 
 primaryfunc(colvar = "shf_age_cat")
 ```
 
 ```{r}
-#| label: tbl-primary-age2
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Primary objective by age (mutually exclusive groups)"
-#| tbl-pos: "H"
-
-primaryfunc2(colvar = "shf_age_cat")
-```
-
-\clearpage
-
-```{r}
 #| label: tbl-primary-sex
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by sex"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by sex"
 #| tbl-pos: "H"
 
 primaryfunc(colvar = "shf_sex")
 ```
 
 ```{r}
-#| label: tbl-primary-sex2
+#| label: tbl-primary-egfr
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by sex (mutually exclusive groups)"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by eGFR"
 #| tbl-pos: "H"
 
-primaryfunc2(colvar = "shf_sex")
+primaryfunc(colvar = "shf_gfrckdepi_cat")
 ```
-
-\clearpage
 
 ```{r}
 #| label: tbl-primary-cci
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by CCI"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by Charlson Comorbidity Index"
 #| tbl-pos: "H"
 
 primaryfunc(colvar = "sos_com_charlsonci_cat")
 ```
 
 ```{r}
-#| label: tbl-primary-cci2
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Primary objective by CCI (mutually exclusive groups)"
-#| tbl-pos: "H"
-
-primaryfunc2(colvar = "sos_com_charlsonci_cat")
-```
-
-\clearpage
-
-```{r}
 #| label: tbl-primary-meds
 #| cache: true
 #| cache.comments: false
 #| dependson: primaryfunc
-#| tbl-cap: "Primary objective by number of other medications"
+#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by number of other medications"
 #| tbl-pos: "H"
 
 primaryfunc(colvar = "sos_lm_n_othermeds_cat")
-```
-
-```{r}
-#| label: tbl-primary-meds2
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Primary objective by number of other medications (mutually exclusive groups)"
-#| tbl-pos: "H"
-
-primaryfunc2(colvar = "sos_lm_n_othermeds_cat")
 ```

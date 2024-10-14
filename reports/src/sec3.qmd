@@ -26,6 +26,7 @@ sec3func <- function(data = rsdata, impdata = imprsdata, time, event, eventname,
 
   # 1 row - incidence
   ev <- data %>%
+    filter(!is.na(!!sym(event))) %>%
     group_by(!!sym(xvar)) %>%
     summarise(
       ev = sum(!!sym(event) == "Yes"),
@@ -105,8 +106,8 @@ sec3func_outer <- function(medvar, byvar, lev, byvarname, novars) {
   out1 <- sec3func(
     data = data,
     impdata = impdata,
-    time = outvars$time[1],
-    event = outvars$var[1],
+    time = paste0(outvars$time[1], "adhere"),
+    event = paste0(outvars$var[1], "adhere"),
     eventname = outvars$shortname[1],
     medvar = medvar,
     novars = novars
@@ -139,7 +140,7 @@ sec3func_outer <- function(medvar, byvar, lev, byvarname, novars) {
     )
 }
 
-medvars <- c("bbl", "rasiarni", "mra", "sglt2i")
+medvars <- c("bbl", "rasiarni", "acei", "arb", "arni", "mra", "sglt2i")
 
 sec3func_outer2 <- function(byvar = NULL, lev = NULL, byvarname, novars = NULL) {
   out <- lapply(medvars,
@@ -169,11 +170,13 @@ age <- sec3func_outer3(byvar = "shf_age_cat", byvarname = "Age")
 
 sex <- sec3func_outer3(byvar = "shf_sex", byvarname = "")
 
-cci <- sec3func_outer3(byvar = "sos_com_charlsonci_cat", byvarname = "CCI")
+egfr <- sec3func_outer3(byvar = "shf_gfrckdepi_cat", byvarname = "eGFR")
+
+cci <- sec3func_outer3(byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index")
 
 meds <- sec3func_outer3(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
-outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, meds)
+outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, egfr, cci, meds)
 ```
 
 ```{r}
@@ -181,15 +184,18 @@ outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, cci, me
 #| cache: true
 #| cache.comments: false
 #| dependson: sec3func
-#| tbl-cap: "Secondary objective 3 - Association between outcomes and adherence"
+#| tbl-cap: "Association between adherence and outcomes"
 
 outall <- outall %>%
   mutate(Medication = factor(case_when(
     Medication == "bbl" ~ 1,
     Medication == "rasiarni" ~ 2,
-    Medication == "mra" ~ 3,
-    Medication == "sglt2i" ~ 4,
-  ), levels = 1:4, labels = c("Beta-blocker", "RASi/ARNi", "MRA", "SGLT2i")))
+    Medication == "acei" ~ 3,
+    Medication == "arb" ~ 4,
+    Medication == "arni" ~ 5,
+    Medication == "mra" ~ 6,
+    Medication == "sglt2i" ~ 7,
+  ), levels = 1:7, labels = c("Beta-blocker", "ACEi/ARB/ARNi", "ACEi", "ARB", "ARNi", "MRA", "SGLT2i")))
 
 if (output) {
   make_one_xlsxsheet(outall)
@@ -230,9 +236,8 @@ default_kable(outall,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Abbreviations: py, person-years; HR, Hazard Ratio",
-      "The follow-up time is started 1 year after baseline when adherence is evaluated. All covariates are from baseline.",
-      "Cox regressions are only performed when the number of events > 10 in both groups."
+      "Cox regressions are performed if the number of events > 10 in both groups.",
+      "Abbreviations: py, person-years; HR, Hazard Ratio; CVM, Cardiovascular mortality; HFH, Heart failure hospitalisation"
     ),
     threeparttable = T
   )

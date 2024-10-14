@@ -3,14 +3,14 @@
 #| label: tbl-sec6-1
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 6 - Patients taking Beta-blocker, MRA and SGLT2i 2021-2023"
+#| tbl-cap: "Patients taking Beta-blocker, MRA and SGLT2i by eligibilty criteria 2021-2023"
 #| tbl-pos: "H"
 
 elvars <- names(rsdata)[str_detect(names(rsdata), "_cateli")]
 
 rsdatatmp <- rsdata %>%
   filter(shf_indexyear_cat == "2021-2023") %>%
-  mutate(smb = factor(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0), levels = 0:1, labels = c("No", "Beta-blocker + MRA + SGLT2i")))
+  mutate(smb = factor(if_else(sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0), levels = 0:1, labels = c("No", "Beta-blocker+MRA+SGLT2i")))
 
 tabn <- rsdatatmp %>%
   count() %>%
@@ -115,7 +115,8 @@ default_kable(tab,
     general_title = "",
     general = c(
       "Presented with n (%)."
-    )
+    ),
+    threeparttable = T
   ) %>%
   row_spec(1, hline_after = T)
 ```
@@ -125,7 +126,132 @@ default_kable(tab,
 #| cache: true
 #| cache.comments: false
 #| dependson: tbl-sec6-1
-#| tbl-cap: "Secondary objective 6 - Doses by molecule for patients taking Beta-blocker, MRA and SGLT2i 2021-2023"
+#| tbl-cap: "Molecules for patients taking Beta-blocker, MRA and SGLT2i by eligibilty criteria 2021-2023"
+#| tbl-pos: "H"
+
+elvars2 <- c(NA, elvars)
+
+sec6funcmol <- function(byvar) {
+  if (is.na(byvar)) {
+    tab <- rsdatatmp %>%
+      filter(smb != "No") %>%
+      count(ATC_sos_lm_bbl, ATC_sos_lm_mra, ATC_sos_lm_sglt2i) %>%
+      mutate(
+        np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        ),
+        byvar = "Overall",
+        levvar = ""
+      ) %>%
+      select(byvar, levvar, contains("ATC"), np)
+  } else {
+    tab <- rsdatatmp %>%
+      filter(!is.na(!!sym(byvar)) & smb != "No") %>%
+      group_by(!!sym(byvar)) %>%
+      count(ATC_sos_lm_bbl, ATC_sos_lm_mra, ATC_sos_lm_sglt2i) %>%
+      mutate(
+        np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        ),
+        byvar = byvar
+      ) %>%
+      rename(
+        levvar = !!sym(byvar)
+      ) %>%
+      select(byvar, levvar, contains("ATC"), np) %>%
+      ungroup()
+  }
+}
+
+taball <- lapply(elvars2,
+  FUN = sec6funcmol
+)
+
+taball <- bind_rows(taball)
+
+taball <- taball %>%
+  mutate(
+    # if recoding or categorizing will still get org label
+    var_tmp = str_replace_all(byvar, "(_cateli)", "")
+  )
+
+taball <- left_join(taball,
+  metavars %>%
+    select(variable, label, unit),
+  by = c("var_tmp" = "variable")
+) %>%
+  mutate(
+    Variable = coalesce(label, var_tmp),
+    Variable = if_else(!is.na(unit),
+      paste0(Variable, " (", unit, ")"),
+      Variable
+    ),
+    Variable = paste0(Variable, " ", levvar),
+    order = 1:n()
+  )
+
+taball <- taball %>%
+  group_by(Variable) %>%
+  mutate(Variable = if_else(row_number() == 1, Variable, NA_character_)) %>%
+  ungroup()
+
+taball <- left_join(taball, lmvarsub %>% select(-med), by = c("ATC_sos_lm_bbl" = "atc")) %>%
+  mutate(atcvar_bbl = sub) %>%
+  select(-sub)
+taball <- left_join(taball, lmvarsub %>% select(-med), by = c("ATC_sos_lm_mra" = "atc")) %>%
+  mutate(atcvar_mra = sub) %>%
+  select(-sub)
+taball <- left_join(taball, lmvarsub %>% select(-med), by = c("ATC_sos_lm_sglt2i" = "atc")) %>%
+  mutate(atcvar_sglt2i = sub) %>%
+  select(-sub)
+
+taball <- taball %>%
+  select(Variable, atcvar_bbl, atcvar_mra, atcvar_sglt2i, np)
+
+colnames(taball) <- c("Strata", "Molecule Beta-blocker", "Molecule MRA", "Molecule SGLT2i", "n (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(taball)
+}
+
+colnames(taball) <- sanitize_text(colnames(taball))
+
+taball <- taball %>%
+  mutate(
+    Strata = sanitize_text(Strata),
+    Strata = str_replace_all(Strata, fixed("²"), "\\textsuperscript{2}"),
+    Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+    Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(taball,
+  escape = FALSE,
+  font_size = 7,
+  longtable = TRUE
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n (%).",
+      "Abbreviations: MRA, Mineralocorticoid receptor antagonist; SGLT2i, Sodium-Glucose Transport Protein 2"
+    )
+  )
+```
+
+```{r}
+#| label: tbl-sec6-3
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec6-1
+#| tbl-cap: "Doses for patients taking Beta-blocker, MRA and SGLT2i by eligibilty criteria 2021-2023"
 #| tbl-pos: "H"
 
 elvars2 <- c(NA, elvars)
@@ -145,8 +271,10 @@ sec6func2 <- function(byvar, medvar) {
         max = max(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
         n = n()
       ) %>%
+      ungroup() %>%
       mutate(
-        out = paste0(n, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
+        np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+        out = paste0(np, ", ", fn(med, 2), " [", fn(min, 2), ", ", fn(q1, 2), ", ", fn(q3, 2), ", ", fn(max, 2), "], ", fn(mean, 2), " (", fn(sd, 2), ")"),
         out = case_when(
           n == 0 ~ "-",
           n < 10 ~ "<10",
@@ -159,8 +287,7 @@ sec6func2 <- function(byvar, medvar) {
       rename(
         atcvar = !!sym(paste0("ATC_sos_lm_", medvar))
       ) %>%
-      select(var, atcvar, byvar, levvar, out) %>%
-      ungroup()
+      select(var, atcvar, byvar, levvar, out)
   } else {
     tab <- rsdatatmp %>%
       filter(!is.na(!!sym(byvar)) & !is.na(!!sym(paste0("dose_sos_lm_", medvar))) & smb != "No") %>%
@@ -173,10 +300,14 @@ sec6func2 <- function(byvar, medvar) {
         sd = sd(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
         min = min(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
         max = max(!!sym(paste0("dose_sos_lm_", medvar)), na.rm = T),
-        n = n()
+        n = n(),
+        tot = sum(n)
       ) %>%
+      ungroup() %>%
+      group_by(!!sym(byvar)) %>%
       mutate(
-        out = paste0(n, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
+        np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+        out = paste0(np, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
         out = case_when(
           n == 0 ~ "-",
           n < 10 ~ "<10",
@@ -277,7 +408,8 @@ default_kable(taball,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Presented with n, median [minimum, q1, q3, maximum], mean (standard deviation)."
+      "Presented with n (%), median [minimum, q1, q3, maximum], mean (standard deviation).",
+      "Abbreviations: MRA, Mineralocorticoid receptor antagonist; SGLT2i, Sodium-Glucose Transport Protein 2"
     )
   )
 ```

@@ -1,6 +1,5 @@
 ---
 title: "Statistical report: Heart Failure treatment patterns in real world"
-subtitle: Draft
 date: "`r Sys.Date()`"
 cover: static/ki_logo_vert_rgb.png
 editor: source
@@ -59,7 +58,7 @@ sheets <- names(wb)
 
 # load pptx file with figs
 figs <- officer::read_pptx(path = here::here("output/figs/figs.pptx"))
-output <- FALSE
+output <- TRUE
 ```           
 
 \newpage
@@ -68,7 +67,7 @@ output <- FALSE
 
 ## Data sources
 
-The Swedish Heart Failure Registry (SwedeHF) is an ongoing nationwide quality registry started in 2000, 
+The Swedish Heart Failure Registry (SwedeHF) is an ongoing nationwide quality register started in 2000, 
 that includes in- and out-hospital patients with HF, regardless of EF and previous history of HF[@swedehf]. 
 Around 80 variables are recorded at 
 discharge from hospital or at the outpatient visit, i.e. index date, and 
@@ -118,6 +117,13 @@ from approximately `r rsdata %>% distinct(shf_centre) %>% count() %>% pull(n)` e
 
 Baseline is date of visits or date of discharge for the visit/hospitalization recorded in SwedeHF. 
 
+### Follow-up
+
+Data were censored at `r global_followup_year` years follow-up, 2023-12-31 or emigration from Sweden. 
+In the survival analyses censoring was also performed at death from other causes than the event. 
+
+\clearpage
+
 ### Variable defintions
 
 {{< include src/vars.qmd >}}
@@ -153,11 +159,6 @@ Adherence is defined as the number of days to the next dispensation (within each
 #### Discontinuation 
 
 Discontinuation is defined as no prescription at 6 months and 1 year $\pm$ 2 months. Patients who do not have follow-up until 6 months + 2 months and 1 year + 2 months are excluded from the respective calculations. 
-
-#### Limitations 
-
-1. The text extraction is sometimes a matter of interpretation.  
-2. The prescription can be old and the doctor can verbally have instructed the patient to take a different dose/stop medication.
 
 # Statistical analysis 
 
@@ -200,7 +201,6 @@ The median (q1-q3) age is `r med` and `r percfem`% females.
 
 ## Baseline characteristics
 
-From protocol:
 Baseline characteristics are presented partly by patients’ status, i.e. a HF hospitalization within 3 months previously and according to area of previous hospitalization, if any. 
 Categorical variables are presented with n and percentage and tested for differences between groups using the chi-square test. 
 Continuous variables are presented with median [minimum, first quartile, third quartile, maximum], mean (standard deviation) and tested for differences between groups using the Kruskal-Wallis test. 
@@ -213,40 +213,19 @@ Continuous variables are presented with median [minimum, first quartile, third q
 
 ## Primary objective
 
-From protocol under Primary objective:
-To describe the frequency of the different co-prescriptions of the drugs among the four pillars for the treatment of HFrEF, before and after the availability of dapagliflozin on the market for an HF indication, according to patients’ status at index date, i.e. patients with recent HF hospitalization (up to 3 months post-discharge) vs stable patients (all the others), area of hospitalization if any (cardiology or internal medicine) and patients’ clinical characteristics at index date.
-
-From protocol under Endpoints: 
-Number (%) of patients treated by mono/bi/tri or quadri-therapy among the four pillars of HFrEF, with detail of each molecule and dosage, at patients’ entry into the registry 
-Number of patients (%) who remain on the same combination during follow-up (details of each combination) at (3), 6 and 12 months (in the subset of patients with repeated registrations in SwedeHF).
-In the subset of patients with repeated registrations in SwedeHF, number of patients (%) who remain on same type and dosage of the four pillars drugs at (3), 6 and 12 months of follow-up.
-
-From protocol under Analyses for the primary objective: 
-Frequency of the different single and co-prescriptions (i.e. any combination of two or more of the following) of the drugs among the four pillars for the treatment of HFrEF, namely: 
-1) ACEi or ARNi or ARB
-2) beta blockers
-3) MRAs
-4) SGLT2i
-Separate analyses before and after the availability of dapagliflozin on the market for this indication in Sweden, i.e. 1st July 2021 (HS 2021-00282). Therefore, the maximum number of classes for combinations is three before 2021 and four after 2021. 
-Analyses according to patients’ status, i.e. up to 3 months post-discharge for a HF hospitalization, vs stable patients (all the others). Baseline characteristics of these two populations will be analyzed  and for categorical variables and the Mann-Whitney U-test for continuous variables. + according to area of previous hospitalization if any
-Analyses will be stratified based on key patient characteristics, i.e. age, sex, charlson index, number of concomitant treatments at the index date
+The primary objective is to describe the frequency of the different co-prescriptions of the drugs among the four pillars for the treatment of HFrEF, before and after the availability of dapagliflozin on the market for an HF indication, according to patients’ status at index date, i.e. patients with recent HF hospitalization (up to 3 months post-discharge) vs stable patients (all the others), area of hospitalization if any (cardiology or internal medicine) and patients’ clinical characteristics at index date.
 
 {{< include src/primary.qmd >}}
 
 \clearpage
 
+\blandscape
+
 ## Secondary objectives
 
 ### Secondary objective 1
 
-From protocol under Secondary objectives:
-To assess the association between the number of drugs prescribed among the four pillars (mono, bi, tri or quadruple therapy) and the occurrence of hospitalization for HF and HF hospitalization + CV death (for the time frame data on CV death is available) according to patient’s status and patients’ clinical characteristics at index date.
-
-From protocol under Endpoints: 
-Event rates for the outcomes according to the combinations of drugs prescribed among the four pillars (mono, bi, tri or quadruple therapy), also according to patients’ status, area of hospitalization if any, and patients’ clinical characteristics.
-
-From protocol under Analyses for the secondary objectives: 
-The association between the combinations of drugs prescribed among the four pillars (mono, bi, tri or quadruple therapy) and the risk of HF hospitalization and the composite of HF hospitalization and CV death (for the time frame data on CV death is available) will be assessed by time-to-event analyses, with the Kaplan-Meier method and univariable/multivariable Cox regression models with adjustments for all the available patients´ clinical characteristics.  
+The secondary objective 1 is to assess the association between the number of drugs prescribed among the four pillars (mono, bi, tri or quadruple therapy) and the occurrence of hospitalization for HF and HF hospitalization + CV death according to patient’s status and patients’ clinical characteristics at index date.
 
 {{< include src/sec1.qmd >}}
 
@@ -254,14 +233,9 @@ The association between the combinations of drugs prescribed among the four pill
 
 ### Secondary objective 2
 
-From protocol under Secondary objectives:
-To describe adherence and persistence to the four pillars according to the total number of drugs taken for other CV and non-CV diseases (i.e. overall burden of pharmacotherapy), and considering patients’ status and patient’s clinical characteristics at index date.
+The secondary objective 2 is to describe adherence and persistence to the four pillars according to the total number of drugs taken for other CV and non-CV diseases (i.e. overall burden of pharmacotherapy), and considering patients’ status and patient’s clinical characteristics at index date. 
 
-From protocol under Endpoints: 
-Adherence to and persistence of the four pillars according to the total number of drugs taken for other CV diseases and non-CV diseases and according to patients’ status and patients’ clinical characteristics (in patients with repeated registrations)
-
-From protocol under Analyses for the secondary objectives: 
-Adherence to the four pillars, defined as a PDC≥80%, and persistence to the four pillars will be assessed according to the total number of drugs taken for other CV and non-CV diseases, in patients with repeated registrations (prescription retrieved through SwedeHF, dispensation through the Prescribed Drug Registry).  
+The adherence is calculated as $\ge$ 80% adherence during the first year after index.
 
 {{< include src/sec2.qmd >}}
 
@@ -269,14 +243,9 @@ Adherence to the four pillars, defined as a PDC≥80%, and persistence to the fo
 
 ### Secondary objective 3
 
-From protocol under Secondary objectives:
-To assess the association between the adherence and persistence to the four pillars and the risk of HF hospitalization according to patient’s status and patient’s clinical characteristics.
+The secondary objective 3 is to assess the association between the adherence to the four pillars and the risk of HF hospitalization according to patient’s status and patient’s clinical characteristics.
 
-From protocol under Endpoints: 
-Event rates for the outcomes according to adherence and persistence to the four pillars and according to patients’ status and patients’ clinical characteristics at index date.
-
-From protocol under Analyses for the secondary objectives: 
-The association between the adherence to the four pillars (see secondary objective 2) and the risk of HF hospitalization will be assessed by KM curves and univariable/multivariable Cox regression models, with all the available patients´ characteristics and according to patient´s status. 
+The adherence is calculated as $\ge$ 80% adherence during the first year after index. The follow-up time is started 1 year after baseline when adherence is evaluated. All covariates are from baseline.
 
 {{< include src/sec3.qmd >}}
 
@@ -286,16 +255,7 @@ The association between the adherence to the four pillars (see secondary objecti
 
 ### Secondary objective 4
 
-From protocol under Secondary objectives:
-In a subset of patients with “de novo” HFrEF (history of HF <6 months) and with repeated registrations into the registry (at least 6 months apart), to describe the initiation of triple or quadruple therapy (sequence), and to assess the associations with the risk of HF hospitalization and HF hospitalization + CV death (for the time frame data on CV death is available) according to patient’s status and patients’ clinical characteristics at index date.
-
-From protocol under Endpoints: 
-Event rates for the outcomes associated with the different sequences (+ time to initiation of the different drugs) of HFrEF drugs initiation (4 pillars)  in patients with in patients with “de novo” HFrEF , according to patients’ status and patients’ clinical characteristics at index date.
-
-From protocol under Analyses for the secondary objectives: 
-In a subset of patients with “de novo” HFrEF defined as HF duration < 6 months, multivariable Cox regression models will be fitted to assess the associations between outcomes and the different sequences/time of initiations of the 4 pillars or of triple therapy among the 4 pilars. 
-
-Together with HF duration $\le$ 6 months the inclusion criteria is also that the patient needs to be medication naive for SGLT2i, RASi/ARNi, Beta-blocker and MRA (defined as not taking any of these drugs 4-12 months prior to baseline). 
+The secondary objective 4 is to, in a subset of patients with “de novo” HFrEF (history of HF <6 months) and medication naive for SGLT2i, ACEi/ARB/ARNi, Beta-blocker and MRA (defined as not taking any of these drugs 4-12 months prior to baseline), to describe the initiation of triple or quadruple therapy (sequence), and to assess the associations with the risk of HF hospitalization and HF hospitalization + CV death according to patient’s status and patients’ clinical characteristics at index date.
 
 {{< include src/sec4.qmd >}}
 
@@ -303,39 +263,19 @@ Together with HF duration $\le$ 6 months the inclusion criteria is also that the
 
 \clearpage
 
-### Secondary objective 5
+### Secondary objective 5-6
 
-From protocol under Secondary objectives:
-To describe the number of patients who would be eligible for a SPC containing a SGLT2i, a beta-blocker and an MRA according to patient’s status and patients’ clinical characteristics at index date.
+The secondary objective 5 is to describe the number of patients who would be eligible for a SPC containing a SGLT2i, a beta-blocker and an MRA.
 
-From protocol under Endpoints: 
-Number of patients taking an SGLT2i, a beta-blocker and an MRA simultaneously at index date. 
-
-From protocol under Analyses for the secondary objectives: 
-The number (%) of patients taking an SGLT2i, a beta-blocker and an MRA simultaneously will be calculated. 
-
-No output: See the results for the primary endpoint/secondary objective 6. 
-
-\clearpage
-
-### Secondary objective 6
-
-From protocol under Secondary objectives:
-Among these “eligible” patients (see previous point), to describe the proportion of patients treated by these three classes drugs concomitantly according to patient’s status and patients’ clinical characteristics.
-
-From protocol under Endpoints: 
-Number of patients eligible to receive an SGLT2i, a beta-blocker and an MRA according to systolic blood pressure, heart rate, renal function, and potassium levels at index date. 
-
-From protocol under Analyses for the secondary objectives: 
-In the eligible patients identified according to the secondary objective 5, doses will be assessed according to systolic blood pressure (blow or above 100 mmHg), heart rate (below or above 50 beats/minute), renal function (eGFR above or below 30 mL/min/1.73 m2), and potassium levels (above and below 5.0 mEq/L). 
+The secondary objective 6 is to, among these “eligible” patients, describe the proportion of patients treated by these three classes drugs concomitantly according to patient’s status and patients’ clinical characteristics. Doses will be assessed according to systolic blood pressure, heart rate, renal function, potassium levels and diabetes type I. 
 
 Eligible is defined as: 
 
 - $\ge$ 100 mm Hg or taking any drug, 
-- heart rate $\ge$ 50 beats/minute or Beta-blocker
-- eGFR $\ge$ 30 mL/min/1.73 or MRA or SGLT2i
-- potassium $\le$ 5.0 mEq/L or MRA
-- no diabetes type 1 or SGLT2i. 
+- heart rate $\ge$ 50 beats/minute or taking Beta-blocker
+- eGFR $\ge$ 30 mL/min/1.73 or taking MRA or SGLT2i
+- potassium $\le$ 5.0 mEq/L or taking MRA
+- no diabetes type 1 or taking SGLT2i. 
 
 All patients are eligible according to the above definition. 
 
@@ -345,13 +285,10 @@ All patients are eligible according to the above definition.
 
 ### Secondary objective 7
 
-From protocol under Secondary objectives:
-To describe the number of patients who would be eligible for a SPC containing the four pillars (SGLT2i, BB, MRA, ACEi/ARNI).
+The secondary objective 7 is to describe the number of patients who would be eligible for a SPC containing the four pillars (SGLT2i, BB, MRA, ACEi/ARNI) 
+according to systolic blood pressure, heart rate, renal function, potassium levels and diabetes type I at index. 
 
-From protocol under Endpoints: 
-Number of patients who would be eligible for a SPC containing the four pillars (SGLT2i, BB, MRA, ACEi/ARNI) according to systolic blood pressure, heart rate, renal function, and potassium levels at index date.
-
-From protocol under Analyses for the secondary objectives: NA
+Eligible is defined as patients currently on the combination of  drugs. 
 
 {{< include src/sec7.qmd >}}
 
@@ -359,89 +296,47 @@ From protocol under Analyses for the secondary objectives: NA
 
 ### Secondary objective 8
 
-From protocol under Secondary objectives:
-Among these “eligible” patients (see previous point), to describe the proportion of patients treated by four drug classes concomitantly according to patient’s status and patients’ clinical characteristics.
+The secondary objective 8 is to, among these “eligible” patients, describe the proportion of patients treated by four drug classes concomitantly according to patient’s status and patients’ clinical characteristics.
 
-From protocol under Endpoints: 
-Among these “eligible” patients (see previous point), number of patients treated by the four drug classes concomitantly according to patient’s status and patients’ clinical characteristics.
-
-From protocol under Analyses for the secondary objectives: 
-NA 
-
-See output for secondary objective 6. 
+{{< include src/sec8.qmd >}}
 
 \clearpage
 
 ### Secondary objective 9
 
-From protocol under Secondary objectives:
-To describe the co-prescriptions of other drugs for HFrEF on top of the four pillars according to patients’ status and patient’s clinical characteristics.
-
-From protocol under Endpoints: 
-Number (%) of patients treated with other drugs for HFrEF on top of the four pillars, with detail of each molecule (including ivabradine, diuretics), and dosage. (I switched the text from the protocol between 9 and 10)
-
-From protocol under Analyses for the secondary objectives: 
-Number (%) of patients treated with other drugs for HFrEF on top of the four pillars, with detail of each molecule (including ivabradine, diuretics), and dosage.
+The secondary objective 9 is to describe the co-prescriptions of other drugs for HFrEF on top of the four pillars according to patients’ status and patient’s clinical characteristics.
 
 {{< include src/sec9.qmd >}}
 
 \clearpage
 
+\blandscape
+
 ### Secondary objective 10
 
-From protocol under Secondary objectives:
-Report the proportion of discontinuation of combinations of the four pillars, and patients´ characteristics associated with discontinuation.
-
-From protocol under Endpoints: 
-Patient characteristics associated with drug discontinuation (4 pillars). (Switched the text from the protocol between 9 and 10)
-
-From protocol under Analyses for the secondary objectives: 
-To assess patients’ characteristics associated with discontinuation of the combinations of drugs among the four pillars (mono, bi, tri or quadruple therapy), multivariable logistic regression models will be performed to identify patient characteristics independently associated with discontinuation (from endpoint 8 in protocol)
+The secondary objective 10 is to report the proportion of discontinuation of combinations of the four pillars, and patients´ characteristics associated with discontinuation.
 
 {{< include src/sec10.qmd >}}
+
+\elandscape
 
 \clearpage
 
 ### Secondary objective 11
 
-From protocol under Secondary objectives:
-To report the number of patients who are prescribed dapagliflozin and bisoprolol concomitantly, who would be eligible for a SPC with the combination of these two drugs. 
-
-From protocol under Endpoints: 
-Number (%) of patients treated concomitantly with dapagliflozin and bisoprolol.  
-
-From protocol under Analyses for the secondary objectives: 
-Number (%) of patients treated concomitantly with dapagliflozin and bisoprolol.  
+The secondary objective 11 is to report the number of patients who are prescribed dapagliflozin and bisoprolol concomitantly, who would be eligible for a SPC with the combination of these two drugs. 
 
 {{< include src/sec11.qmd >}}
 
-\clearpage
-
 ### Secondary objective 12
 
-From protocol under Secondary objectives:
-To report the number of patients who are prescribed concomitantly dapagliflozin and bisoprolol and remain on these drugs at least six and twelve months, with respective dosage variations. 
-
-From protocol under Endpoints: 
-Number of patients (%) who remain on the combination of dapagliflozin and bisoprolol for at least 6 months and for at least 12 months. Dosage variation of bisoprolol and dosages maintained for at least 6 months and for at least 12 months.
-
-From protocol under Analyses for the secondary objectives: 
-Number of patients (%) who remain on the combination of dapagliflozin and bisoprolol for at least 6 months and for at least 12 months. Dosage variation of bisoprolol and dosages maintained for at least 6 months and for at least 12 months.
+The secondary objective 12 is to report the number of patients who are prescribed concomitantly dapagliflozin and bisoprolol and remain on these drugs at least six and twelve months, with respective dosage variations. Patients who do not have follow-up until 6 months + 2 months and 1 year + 2 months are excluded from the respective calculations.
 
 {{< include src/sec12.qmd >}}
 
-\clearpage
-
 ### Secondary objective 13
 
-From protocol under Secondary objectives:
-To report the number of patients already on a stable dose of bisoprolol who are not taking dapagliflozin who would be eligible for a SPC with the combination of dapagliflozin and bisoprolol (i.e. patients with eGFR ≥ 25 mL/min/1.73 m2 and without type 1 diabetes mellitus). 
-
-From protocol under Endpoints: 
-Number (%) of patients treated by a stable dose of bisoprolol to whom dapagliflozin could be prescribed (i.e. patients with eGFR ≥ 25 mL/min/1.73 m2 and without type 1 diabetes mellitus).
-
-From protocol under Analyses for the secondary objectives: 
-Number (%) of patients treated by a stable dose of bisoprolol to whom dapagliflozin could be prescribed (i.e. patients with eGFR ≥ 25 mL/min/1.73 m2 and without type 1 diabetes mellitus).
+The secondary objective 13 is to report the number of patients already on a stable dose of bisoprolol who are not taking dapagliflozin who would be eligible for a SPC with the combination of dapagliflozin and bisoprolol. 
 
 {{< include src/sec13.qmd >}}
 
@@ -449,14 +344,7 @@ Number (%) of patients treated by a stable dose of bisoprolol to whom dapagliflo
 
 ### Secondary objective 14
 
-From protocol under Secondary objectives:
-To report the number  of patients who are simultaneously prescribed dapagliflozin, bisoprolol and an MRA who would be eligible  for a SPC with the combination of dapagliflozin, bisoprolol and an MRA.
-
-From protocol under Endpoints: 
-Number (%) of patients treated concomitantly with dapagliflozin, bisoprolol and an MRA with details of molecule and dosage of MRA and dosage of bisoprolol.
-
-From protocol under Analyses for the secondary objectives: 
-Number (%) of patients treated concomitantly with dapagliflozin, bisoprolol and an MRA with details of molecule and dosage of MRA and dosage of bisoprolol.
+The secondary objective 14 is to report the number  of patients who are simultaneously prescribed dapagliflozin, bisoprolol and an MRA who would be eligible for a SPC with the combination of dapagliflozin, bisoprolol and an MRA.
 
 {{< include src/sec14.qmd >}}
 
@@ -468,10 +356,7 @@ Number (%) of patients treated concomitantly with dapagliflozin, bisoprolol and 
 
 The R code for all data handling and statistical analyses are found: 
 
-https://github.com/KIHeartFailure/swedehf-hftreat. On publication
-the repository will be made public so as to 
-link to it from the resulting article for increased transparency and code sharing.
-No data or output is stored in the repository. 
+https://github.com/KIHeartFailure/swedehf-hftreat. No data or output is stored in the repository. 
 
 ## R session information {#sessioninfo}
 

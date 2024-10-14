@@ -74,10 +74,12 @@ lmgdmt3 <- lmgdmt2 %>%
       str_detect(ATC, paste0("^(", lmvars$atc[2], ")")) ~ lmvars$var[2],
       str_detect(ATC, paste0("^(", lmvars$atc[3], ")")) ~ lmvars$var[3],
       str_detect(ATC, paste0("^(", lmvars$atc[4], ")")) ~ lmvars$var[4],
+      str_detect(ATC, paste0("^(", lmvars$atc[5], ")")) ~ lmvars$var[5],
       str_detect(ATC, paste0("^(", lmvars$atc[6], ")")) ~ lmvars$var[6],
-      str_detect(ATC, paste0("^(", lmvars$atc[7], ")")) ~ lmvars$var[7],
       str_detect(ATC, paste0("^(", lmvars$atc[8], ")")) ~ lmvars$var[8],
-      str_detect(ATC, paste0("^(", lmvars$atc[9], ")")) ~ lmvars$var[9]
+      str_detect(ATC, paste0("^(", lmvars$atc[9], ")")) ~ lmvars$var[9],
+      str_detect(ATC, paste0("^(", lmvars$atc[10], ")")) ~ lmvars$var[10],
+      str_detect(ATC, paste0("^(", lmvars$atc[11], ")")) ~ lmvars$var[11]
     )
   ) %>%
   filter(!is.na(med))
@@ -281,7 +283,7 @@ colnames(lmgdmt6) <- str_remove_all(colnames(lmgdmt6), "var_")
 rsdata <- left_join(rsdata, lmgdmt6, by = "lopnr")
 
 treatvars <- c(
-  "sos_lm_bbl", "sos_lm_rasiarni", "sos_lm_mra", "sos_lm_sglt2i", "sos_lm_nitrate",
+  "sos_lm_acei", "sos_lm_arb", "sos_lm_arni", "sos_lm_bbl", "sos_lm_mra", "sos_lm_sglt2i", "sos_lm_nitrate",
   "sos_lm_digoxin", "sos_lm_ivabradin", "sos_lm_loopdiuretics"
 )
 rsdata <- rsdata %>%
@@ -294,7 +296,7 @@ lmadhere <- lmgdmt4 %>%
     tabs = ANTAL * antnum,
     stopdtm = pmin(shf_indexdtm + 365, censdtm)
   ) %>%
-  filter(diff >= -122 & EDATUM < stopdtm & med %in% c("bbl", "rasiarni", "mra", "sglt2i"))
+  filter(diff >= -122 & EDATUM < stopdtm & med %in% c("acei", "arb", "arni", "bbl", "mra", "sglt2i"))
 
 lmadhere2 <- lmadhere %>%
   group_by(lopnr, EDATUM, med, stopdtm) %>%
@@ -366,7 +368,7 @@ lmfu4 <- lmgdmt4 %>%
   mutate(
     diffsort = diff - 365
   ) %>%
-  filter(med %in% c("bbl", "rasiarni", "mra", "sglt2i")) %>%
+  filter(med %in% c("acei", "arb", "arni", "bbl", "mra", "sglt2i")) %>%
   group_by(lopnr, med) %>%
   arrange(diffsort) %>%
   slice(1) %>%
@@ -379,7 +381,7 @@ lmfu4 <- lmfu4 %>%
 
 rsdata <- left_join(rsdata, lmfu4, by = "lopnr")
 treatvars <- c(
-  "fu_sos_lm_bbl", "fu_sos_lm_rasiarni", "fu_sos_lm_mra", "fu_sos_lm_sglt2i"
+  "fu_sos_lm_acei", "fu_sos_lm_arb", "fu_sos_lm_arni", "fu_sos_lm_bbl", "fu_sos_lm_mra", "fu_sos_lm_sglt2i"
 )
 rsdata <- rsdata %>%
   mutate(across(all_of(treatvars), ~ replace_na(.x, 0)))
@@ -387,7 +389,7 @@ rsdata <- rsdata %>%
 
 # initiation pattern sequence (objective 4)
 lmprevious <- lmgdmt4 %>%
-  filter(diff >= -365 & diff < -122 & med %in% c("bbl", "rasiarni", "mra", "sglt2i")) %>%
+  filter(diff >= -365 & diff < -122 & med %in% c("acei", "arb", "arni", "bbl", "mra", "sglt2i")) %>%
   group_by(lopnr, med) %>%
   slice(1) %>%
   ungroup() %>%
@@ -398,7 +400,7 @@ lmprevious <- lmprevious %>%
   pivot_wider(names_from = c("med"), values_from = c("value"), names_prefix = c("previous_sos_lm_"))
 
 lmseq <- lmgdmt4 %>%
-  filter(diff >= -122 & diff <= 14 & med %in% c("bbl", "rasiarni", "mra", "sglt2i")) %>%
+  filter(diff >= -122 & diff <= 14 & med %in% c("acei", "arb", "arni", "bbl", "mra", "sglt2i")) %>%
   group_by(lopnr, med) %>%
   arrange(EDATUM) %>%
   slice(1) %>%

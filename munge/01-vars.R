@@ -51,6 +51,7 @@ tabvars <- c(
   "sos_com_tia",
   "shf_anemia",
   "sos_com_valvular",
+  "sos_com_hyperkalemia",
   "sos_com_dialysis",
   "sos_com_liver",
   "sos_com_copd",
@@ -62,6 +63,9 @@ tabvars <- c(
 
   # treatments
   "sos_lm_rasiarni",
+  "sos_lm_acei",
+  "sos_lm_arb",
+  "sos_lm_arni",
   "sos_lm_bbl",
   "sos_lm_mra",
   "sos_lm_sglt2i",
@@ -110,8 +114,12 @@ tabvars_not_in_mod <- c(
   "shf_location",
   "sos_com_mi",
   "sos_com_dcm",
+  "sos_com_hyperkalemia",
   "sos_com_dialysis",
   "sos_lm_rasiarni",
+  "sos_lm_acei",
+  "sos_lm_arb",
+  "sos_lm_arni",
   "sos_lm_bbl",
   "sos_lm_mra",
   "sos_lm_sglt2i",
@@ -140,6 +148,7 @@ tabvarsel <- c(
   "sos_hospward_3mo",
   "shf_age_cat",
   "shf_sex",
+  "shf_gfrckdepi_cat",
   "sos_com_charlsonci_cat",
   "sos_lm_n_othermeds_cat"
 )
@@ -158,7 +167,10 @@ outvars <- tibble(
 
 lmvars <- tibble(
   var = c(
-    "rasiarni",
+    "acei",
+    "arb",
+    "arni",
+    # "rasiarni",
     "bbl",
     "mra",
     "sglt2i",
@@ -170,7 +182,10 @@ lmvars <- tibble(
     "n_othermeds"
   ),
   label = c(
-    "RASi/ARNi",
+    "ACEi",
+    "ARB",
+    "ARNi",
+    # "RASi/ARNi",
     "Beta-blocker",
     "MRA",
     "SGLT2i",
@@ -182,7 +197,10 @@ lmvars <- tibble(
     "Number of other CV and Non-CV medications"
   ),
   atc = c(
-    "C09AA01|C09AA02|C09AA03|C09AA05|C09CA06|C09CA01|C09CA03|C09DX04|C09BA02|C09BA03|C09BA05",
+    "C09AA01|C09AA02|C09AA03|C09AA05|C09BA02|C09BA03|C09BA05",
+    "C09CA06|C09CA01|C09CA03",
+    "C09DX04",
+    # "C09AA01|C09AA02|C09AA03|C09AA05|C09CA06|C09CA01|C09CA03|C09DX04|C09BA02|C09BA03|C09BA05",
     "C07AB07|C07AG02|C07AB02|C07FB02",
     "C03DA01|C03DA04|C03DA05",
     "A10BK01|A10BK03",
@@ -193,7 +211,7 @@ lmvars <- tibble(
     "C01DA",
     NA
   ),
-  gdmt = c(T, T, T, T, rep(F, 6))
+  gdmt = c(T, T, T, T, T, T, rep(F, 6))
 )
 
 lmvarsub <- tibble(
@@ -257,7 +275,7 @@ lmvarsub <- tibble(
   ),
   med = c(
     rep("Beta-blocker", 4),
-    rep("RASi/ARNi", 11),
+    rep("ACEi/ARB/ARNi", 11),
     rep("MRA", 3),
     rep("SGLT2i", 2),
     "Ivabradin",
@@ -274,13 +292,21 @@ metavars <- bind_rows(
       "sos_hospward_3mo",
       "sos_prevhfh3mo",
       "sos_prevhfh1yr",
-      paste0("sos_lm_", lmvars$var)
+      paste0("sos_lm_", lmvars$var),
+      "sos_lm_rasiarni"
     ),
     label = c(
       "Area of previous HFH within 3 months",
       "Previous HFH within 3 months",
       "Previous HFH within 1 year",
-      lmvars$label
+      lmvars$label,
+      "ACEi/ARB/ARNi"
     )
   )
 )
+
+metavars <- metavars %>%
+  mutate(label = case_when(
+    variable == "shf_diabetestype" ~ "Diabetes type",
+    TRUE ~ label
+  ))

@@ -1,80 +1,26 @@
-
 ```{r}
 #| label: tbl-sec9-1
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Secondary objective 9 - Patients taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
+#| tbl-cap: "Patients taking Ivabradin, loopdiuretics, digoxin or nitrates including molecule and dose on top of Beta-blocker, ACEi/ARNi, MRA and SGLT2i 2021-2023"
 #| tbl-pos: "H"
 
 rsdatatmp <- rsdata %>%
-  filter(shf_indexyear_cat == "2021-2023" & sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & sos_lm_rasiarni == "Yes")
+  filter(shf_indexyear_cat == "2021-2023" & sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes" & (sos_lm_acei == "Yes" | sos_lm_arni == "Yes"))
 
 tabn <- rsdatatmp %>%
   count() %>%
   mutate(np = paste0(n)) %>%
   mutate(
-    np = case_when(
+    out = case_when(
       n < 10 ~ "<10",
       TRUE ~ np
     ),
-    Medication = "N"
-  ) %>%
-  select(Medication, np)
+    var = "N",
+    atcvar = ""
+  )
 
-tab <- rsdatatmp %>%
-  count(sos_lm_ivabradin, sos_lm_loopdiuretics, sos_lm_digoxin, sos_lm_nitrate, .drop = F) %>%
-  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
-  mutate(
-    np = case_when(
-      n < 10 ~ "<10",
-      TRUE ~ np
-    ),
-    sos_lm_ivabradin = if_else(sos_lm_ivabradin == "Yes", "Ivabradin", ""),
-    sos_lm_loopdiuretics = if_else(sos_lm_loopdiuretics == "Yes", "Loopdiuretics", ""),
-    sos_lm_digoxin = if_else(sos_lm_digoxin == "Yes", "Digoxin", ""),
-    sos_lm_nitrate = if_else(sos_lm_nitrate == "Yes", "Nitrate", ""),
-    Medication = paste(sos_lm_ivabradin, sos_lm_loopdiuretics, sos_lm_digoxin, sos_lm_nitrate, sep = " "),
-    Medication = str_squish(Medication),
-    Medication = str_replace_all(Medication, " ", " + "),
-    Medication = if_else(Medication == "", "None", Medication)
-  ) %>%
-  select(Medication, np)
-
-tab <- rbind(tabn, tab)
-
-colnames(tab) <- c("Medication", "Ivabradin, loopdiuretics, digoxin or nitrates on top of all GDMT")
-
-# excel
-if (output) {
-  make_one_xlsxsheet(tab)
-}
-
-colnames(tab) <- sanitize_text(colnames(tab))
-
-default_kable(tab,
-  escape = FALSE,
-  scale_down = F
-) %>%
-  footnote(
-    footnote_order = c("general", "symbol", "alphabet"),
-    general_title = "",
-    general = c(
-      "Presented with n (%)."
-    )
-  ) %>%
-  column_spec(2, width = "6cm") %>%
-  row_spec(1, hline_after = T)
-```
-
-```{r}
-#| label: tbl-sec9-2
-#| cache: true
-#| cache.comments: false
-#| dependson: tbl-sec9-1
-#| tbl-cap: "Secondary objective 9 - Doses by molecule for patients taking Ivabradin, loopdiuretics, digoxin or nitrates on top of Beta-blocker, RASi/ARNi, MRA and SGLT2i 2021-2023"
-#| tbl-pos: "H"
-
-sec9func2 <- function(medvar) {
+sec9func <- function(medvar) {
   tab <- rsdatatmp %>%
     filter(!is.na(!!sym(paste0("dose_sos_lm_", medvar)))) %>%
     group_by(!!sym(paste0("ATC_sos_lm_", medvar))) %>%
@@ -89,7 +35,8 @@ sec9func2 <- function(medvar) {
       n = n()
     ) %>%
     mutate(
-      out = paste0(n, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
+      np = paste0(n, " (", fn(n / tabn %>% pull(n) * 100, 1), ")"),
+      out = paste0(np, ", ", fn(med, 1), " [", fn(min, 1), ", ", fn(q1, 1), ", ", fn(q3, 1), ", ", fn(max, 1), "], ", fn(mean, 1), " (", fn(sd, 1), ")"),
       out = case_when(
         n == 0 ~ "-",
         n < 10 ~ "<10",
@@ -107,7 +54,7 @@ sec9func2 <- function(medvar) {
 medvars <- c("ivabradin", "loopdiuretics", "digoxin", "nitrate")
 
 tab <- lapply(medvars,
-  FUN = sec9func2
+  FUN = sec9func
 )
 tab <- bind_rows(tab)
 
@@ -126,7 +73,9 @@ tab <- left_join(tab, lmvarsub %>% select(-med), by = c("atcvar" = "atc")) %>%
   mutate(atcvar = sub) %>%
   select(-sub)
 
-colnames(tab) <- c("Medication", "Molecule", "Daily dose")
+tab <- bind_rows(tabn %>% select(var, atcvar, out), tab)
+
+colnames(tab) <- c("Medication", "Molecule", "n (%) and daily dose")
 
 # excel
 if (output) {
@@ -143,7 +92,167 @@ default_kable(tab,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Presented with n, median [minimum, q1, q3, maximum], mean (standard deviation)."
+      "Presented with n (%), median [minimum, q1, q3, maximum], mean (standard deviation)."
     )
   )
+```
+
+```{r}
+#| label: sec92func
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec9-1
+
+tabn <- rsdatatmp %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    out = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    strata = "N",
+    lev = ""
+  )
+
+sec9func2 <- function(medvar) {
+  tab <- rsdatatmp %>%
+    count(!!sym(paste0("sos_lm_", medvar))) %>%
+    mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+    mutate(
+      np = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ np
+      ),
+      strata = "Overall",
+      lev = ""
+    ) %>%
+    filter(!!sym(paste0("sos_lm_", medvar)) == "Yes") %>%
+    select(strata, lev, np)
+
+  sec9func2_inner <- function(byvar) {
+    tab <- rsdatatmp %>%
+      filter(!is.na(!!sym(byvar))) %>%
+      group_by(!!sym(byvar)) %>%
+      count(!!sym(paste0("sos_lm_", medvar))) %>%
+      mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      mutate(
+        np = case_when(
+          n == 0 ~ "-",
+          n < 10 ~ "<10",
+          TRUE ~ np
+        ),
+        strata = byvar
+      ) %>%
+      filter(!!sym(paste0("sos_lm_", medvar)) == "Yes") %>%
+      rename(lev = !!sym(byvar)) %>%
+      select(strata, lev, np) %>%
+      ungroup()
+  }
+
+  tabtmp <- lapply(tabvarsel,
+    FUN = sec9func2_inner
+  )
+  tabtmp <- bind_rows(tabtmp)
+
+  tab <- bind_rows(tabn, tab, tabtmp)
+
+  tab <- tab %>%
+    mutate(
+      # if recoding or categorizing will still get org label
+      var_tmp = str_replace_all(strata, "(_cat)", "")
+    )
+
+  tab <- left_join(tab,
+    metavars %>%
+      select(variable, label, unit),
+    by = c("var_tmp" = "variable")
+  ) %>%
+    mutate(
+      Variable = coalesce(label, var_tmp),
+      Variable = if_else(!is.na(unit),
+        paste0(Variable, " (", unit, ")"),
+        Variable
+      ),
+      Variable = paste0(Variable, " ", lev),
+      order = 1:n()
+    ) %>%
+    select(Variable, np)
+
+  colnames(tab) <- c("Strata", "n (%)")
+
+  # excel
+  if (output) {
+    make_one_xlsxsheet(tab)
+  }
+
+  colnames(tab) <- sanitize_text(colnames(tab))
+
+  tab <- tab %>%
+    mutate(
+      Strata = sanitize_text(Strata),
+      Strata = str_replace_all(Strata, fixed("²"), "\\textsuperscript{2}"),
+      Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+      Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+    )
+
+  default_kable(tab,
+    escape = FALSE,
+    scale_down = F
+  ) %>%
+    footnote(
+      footnote_order = c("general", "symbol", "alphabet"),
+      general_title = "",
+      general = c(
+        "Presented with n (%)."
+      ),
+      threeparttable = T
+    ) %>%
+    row_spec(1, hline_after = T)
+}
+```
+
+```{r}
+#| label: tbl-sec9-ivabradin
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec9-1, sec92func
+#| tbl-cap: "Patients taking Ivabradin on top of Beta-blocker, ACEi/ARNi, MRA and SGLT2i by characteristics 2021-2023"
+#| tbl-pos: "H"
+
+sec9func2("ivabradin")
+```
+
+```{r}
+#| label: tbl-sec9-loopdiuretics
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec9-1, sec92func
+#| tbl-cap: "Patients taking loopdiuretics on top of Beta-blocker, ACEi/ARNi, MRA and SGLT2i by characteristics 2021-2023"
+#| tbl-pos: "H"
+
+sec9func2("loopdiuretics")
+```
+
+```{r}
+#| label: tbl-sec9-digoxin
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec9-1, sec92func
+#| tbl-cap: "Patients taking digoxin on top of Beta-blocker, ACEi/ARNi, MRA and SGLT2i by characteristics 2021-2023"
+#| tbl-pos: "H"
+
+sec9func2("digoxin")
+```
+
+```{r}
+#| label: tbl-sec9-nitrate
+#| cache: true
+#| cache.comments: false
+#| dependson: tbl-sec9-1, sec92func
+#| tbl-cap: "Patients taking nitrates on top of Beta-blocker, ACEi/ARNi, MRA and SGLT2i by characteristics 2021-2023"
+#| tbl-pos: "H"
+
+sec9func2("nitrate")
 ```

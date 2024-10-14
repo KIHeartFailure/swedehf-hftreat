@@ -7,8 +7,8 @@ names(flow) <- c("Criteria", "N")
 flow <- flow %>%
   mutate(Criteria = case_when(
     Criteria == "Exclude posts with with index date > 2023-12-31 (SwedeHF)/2021-12-31 (NPR HF, Controls)" ~ "Exclude posts with index date > 2023-12-31",
-    Criteria == "Exclude posts with with index date > 2023-12-31" ~ "Exclude posts with index date > 2023-12-31",
     Criteria == "Exclude posts censored end fu < index" ~ "Exclude posts with end of follow-up < index",
+    Criteria == "Exclude posts with with index date < 2000-01-01" ~ "Exclude posts with index date < 2000-01-01",
     TRUE ~ Criteria
   ))
 
