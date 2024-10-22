@@ -1,45 +1,54 @@
-
 ```{r}
-#| label: tbl-sec2
+#| label: tbl-sec2-discontinuation
 #| cache: true
 #| cache.comments: false
-#| tbl-cap: "Adherence"
+#| tbl-cap: "Persistance at 1 year"
 #| tbl-pos: "H"
 
 rsdatatmp <- rsdata %>%
+  filter(sos_outtime_death >= 426) %>%
+  mutate(
+    fu_sos_lm_bbl = factor(if_else(sos_lm_bbl == "No", NA_real_, fu_sos_lm_bbl), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_mra = factor(if_else(sos_lm_mra == "No", NA_real_, fu_sos_lm_mra), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_acei = factor(if_else(sos_lm_acei == "No", NA_real_, fu_sos_lm_acei), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_arb = factor(if_else(sos_lm_arb == "No", NA_real_, fu_sos_lm_arb), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_arni = factor(if_else(sos_lm_arni == "No", NA_real_, fu_sos_lm_arni), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_rasiarni = factor(if_else(sos_lm_rasiarni == "No", NA_real_, fu_sos_lm_rasiarni), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_sglt2i = factor(if_else(sos_lm_sglt2i == "No", NA_real_, fu_sos_lm_sglt2i), levels = 0:1, labels = c("No", "Yes"))
+  ) %>%
   rowwise() %>%
-  mutate(sumadhere = sum(sos_lmadhere_bbl_cat == ">=80", sos_lmadhere_mra_cat == ">=80", sos_lmadhere_rasiarni_cat == ">=80", sos_lmadhere_sglt2i_cat == ">=80", na.rm = T)) %>%
+  mutate(sumdisc = sum(fu_sos_lm_bbl == "Yes", fu_sos_lm_mra == "Yes", fu_sos_lm_rasiarni == "Yes", fu_sos_lm_sglt2i == "Yes", na.rm = T)) %>%
   ungroup() %>%
   mutate(
-    sos_lmadhere_comb1 = factor(
+    fu_sos_lm_comb1 = factor(
       case_when(
         sos_lm_gdmt == "None" ~ NA_real_,
-        sumadhere >= 1 ~ 1,
+        sumdisc >= 1 ~ 1,
         TRUE ~ 0
       ),
-      levels = 0:1, labels = c("<80", ">=80")
+      levels = 0:1, labels = c("No", "Yes")
     ),
-    sos_lmadhere_comb2 = factor(
+    fu_sos_lm_comb2 = factor(
       case_when(
         sos_lm_gdmt %in% c("None", "Mono") ~ NA_real_,
-        sumadhere >= 2 ~ 1,
+        sumdisc >= 2 ~ 1,
         TRUE ~ 0
       ),
-      levels = 0:1, labels = c("<80", ">=80")
+      levels = 0:1, labels = c("No", "Yes")
     ),
-    sos_lmadhere_comb3 = factor(case_when(
+    fu_sos_lm_comb3 = factor(case_when(
       sos_lm_gdmt %in% c("None", "Mono", "Double") ~ NA_real_,
-      sumadhere >= 3 ~ 1,
+      sumdisc >= 3 ~ 1,
       TRUE ~ 0
-    ), levels = 0:1, labels = c("<80", ">=80")),
-    sos_lmadhere_comb4 = factor(case_when(
+    ), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_comb4 = factor(case_when(
       sos_lm_gdmt %in% c("None", "Mono", "Double", "Triple") ~ NA_real_,
-      sumadhere >= 4 ~ 1,
+      sumdisc >= 4 ~ 1,
       TRUE ~ 0
-    ), levels = 0:1, labels = c("<80", ">=80"))
+    ), levels = 0:1, labels = c("No", "Yes"))
   )
 
-sec2func <- function(medvar, byvar = NULL, byvarname) {
+sec2discfunc <- function(medvar, byvar = NULL, byvarname) {
   if (is.null(byvar)) {
     tab <- rsdatatmp %>%
       filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar))) %>%
@@ -49,19 +58,19 @@ sec2func <- function(medvar, byvar = NULL, byvarname) {
       ungroup() %>%
       mutate(
         np = case_when(
-          medvar == "sos_lmadhere_comb2" & sos_lm_gdmt %in% c("Mono") ~ NA_character_,
-          medvar == "sos_lmadhere_comb3" & sos_lm_gdmt %in% c("Mono", "Double") ~ NA_character_,
-          medvar == "sos_lmadhere_comb4" & sos_lm_gdmt %in% c("Mono", "Double", "Triple") ~ NA_character_,
+          medvar == "fu_sos_lm_comb2" & sos_lm_gdmt %in% c("Mono") ~ NA_character_,
+          medvar == "fu_sos_lm_comb3" & sos_lm_gdmt %in% c("Mono", "Double") ~ NA_character_,
+          medvar == "fu_sos_lm_comb4" & sos_lm_gdmt %in% c("Mono", "Double", "Triple") ~ NA_character_,
           n < 10 ~ "<10",
           TRUE ~ np
         ),
         Strata = byvarname,
         Medication = medvar
       ) %>%
-      filter(!!sym(medvar) == ">=80" &
+      filter(!!sym(medvar) == "Yes" &
         !(sos_lm_gdmt == "Quadruple" & shf_indexyear_cat == "2016-2020") &
         sos_lm_gdmt != "None" &
-        !(shf_indexyear_cat == "2016-2020" & Medication == "sos_lmadhere_sglt2i_cat")) %>%
+        !(shf_indexyear_cat == "2016-2020" & Medication == "fu_sos_lm_sglt2i")) %>%
       select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
       pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
   } else {
@@ -73,54 +82,53 @@ sec2func <- function(medvar, byvar = NULL, byvarname) {
       ungroup() %>%
       mutate(
         np = case_when(
-          medvar == "sos_lmadhere_comb2" & sos_lm_gdmt %in% c("Mono") ~ NA_character_,
-          medvar == "sos_lmadhere_comb3" & sos_lm_gdmt %in% c("Mono", "Double") ~ NA_character_,
-          medvar == "sos_lmadhere_comb4" & sos_lm_gdmt %in% c("Mono", "Double", "Triple") ~ NA_character_,
+          medvar == "fu_sos_lm_comb2" & sos_lm_gdmt %in% c("Mono") ~ NA_character_,
+          medvar == "fu_sos_lm_comb3" & sos_lm_gdmt %in% c("Mono", "Double") ~ NA_character_,
+          medvar == "fu_sos_lm_comb4" & sos_lm_gdmt %in% c("Mono", "Double", "Triple") ~ NA_character_,
           n < 10 ~ "<10",
           TRUE ~ np
         ),
         Strata = paste0(byvarname, " ", !!sym(byvar)),
         Medication = medvar
       ) %>%
-      filter(!!sym(medvar) == ">=80" &
+      filter(!!sym(medvar) == "Yes" &
         !(sos_lm_gdmt == "Quadruple" & shf_indexyear_cat == "2016-2020") &
         sos_lm_gdmt != "None" &
-        !(shf_indexyear_cat == "2016-2020" & Medication == "sos_lmadhere_sglt2i_cat")) %>%
+        !(shf_indexyear_cat == "2016-2020" & Medication == "fu_sos_lm_sglt2i")) %>%
       select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
       pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
   }
 }
 
-treatvarsadh <- c(
-  "sos_lmadhere_bbl_cat",
-  "sos_lmadhere_rasiarni_cat", "sos_lmadhere_acei_cat", "sos_lmadhere_arb_cat", "sos_lmadhere_arni_cat",
-  "sos_lmadhere_mra_cat", "sos_lmadhere_sglt2i_cat", "sos_lmadhere_comb1", "sos_lmadhere_comb2", "sos_lmadhere_comb3", "sos_lmadhere_comb4"
+treatvarsdisc <- c(
+  "fu_sos_lm_bbl", "fu_sos_lm_rasiarni", "fu_sos_lm_acei", "fu_sos_lm_arb", "fu_sos_lm_arni",
+  "fu_sos_lm_mra", "fu_sos_lm_sglt2i", "fu_sos_lm_comb1", "fu_sos_lm_comb2", "fu_sos_lm_comb3", "fu_sos_lm_comb4"
 )
 
-sec2func_outer <- function(byvar, byvarname) {
-  out <- lapply(treatvarsadh,
-    FUN = sec2func,
+sec2discfunc_outer <- function(byvar, byvarname) {
+  out <- lapply(treatvarsdisc,
+    FUN = sec2discfunc,
     byvar = byvar, byvarname = byvarname
   )
 
   out <- bind_rows(out)
 }
 
-overall <- sec2func_outer(byvar = NULL, byvarname = "Overall")
+overall <- sec2discfunc_outer(byvar = NULL, byvarname = "Overall")
 
-sos_prevhfh3mo <- sec2func_outer(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
+sos_prevhfh3mo <- sec2discfunc_outer(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
 
-sos_hospward_3mo <- sec2func_outer(byvar = "sos_hospward_3mo", byvarname = "HFH")
+sos_hospward_3mo <- sec2discfunc_outer(byvar = "sos_hospward_3mo", byvarname = "HFH")
 
-age <- sec2func_outer(byvar = "shf_age_cat", byvarname = "Age")
+age <- sec2discfunc_outer(byvar = "shf_age_cat", byvarname = "Age")
 
-sex <- sec2func_outer(byvar = "shf_sex", byvarname = "")
+sex <- sec2discfunc_outer(byvar = "shf_sex", byvarname = "")
 
-egfr <- sec2func_outer(byvar = "shf_gfrckdepi_cat", byvarname = "eGFR")
+egfr <- sec2discfunc_outer(byvar = "shf_gfrckdepi_cat", byvarname = "eGFR")
 
-cci <- sec2func_outer(byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index")
+cci <- sec2discfunc_outer(byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index")
 
-meds <- sec2func_outer(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
+meds <- sec2discfunc_outer(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
 tabn <- rsdatatmp %>%
   filter(sos_lm_gdmt != "None") %>%
@@ -144,7 +152,7 @@ taball <- bind_rows(tabn, overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, e
 taball <- taball %>%
   mutate(
     # if recoding or categorizing will still get org label
-    Medication = str_remove_all(Medication, "(_cat|sos_lmadhere_)"),
+    Medication = str_remove_all(Medication, "fu_sos_lm_"),
     Medication = factor(case_when(
       Medication == "bbl" ~ 1,
       Medication == "rasiarni" ~ 2,

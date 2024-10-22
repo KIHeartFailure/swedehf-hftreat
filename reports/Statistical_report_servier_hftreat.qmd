@@ -58,7 +58,7 @@ sheets <- names(wb)
 
 # load pptx file with figs
 figs <- officer::read_pptx(path = here::here("output/figs/figs.pptx"))
-output <- TRUE
+output <- T
 ```           
 
 \newpage
@@ -238,6 +238,8 @@ The secondary objective 2 is to describe adherence and persistence to the four p
 The adherence is calculated as $\ge$ 80% adherence during the first year after index.
 
 {{< include src/sec2.qmd >}}
+
+{{< include src/sec2_disc.qmd >}}
 
 \clearpage
 
