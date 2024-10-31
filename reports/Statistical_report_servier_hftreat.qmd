@@ -58,7 +58,7 @@ sheets <- names(wb)
 
 # load pptx file with figs
 figs <- officer::read_pptx(path = here::here("output/figs/figs.pptx"))
-output <- T
+output <- F
 ```           
 
 \newpage
@@ -201,7 +201,7 @@ The median (q1-q3) age is `r med` and `r percfem`% females.
 
 ## Baseline characteristics
 
-Baseline characteristics are presented partly by patients’ status, i.e. a HF hospitalization within 3 months previously and according to area of previous hospitalization, if any. 
+Baseline characteristics are presented partly by patients’ status, i.e. a HF hospitalization within 3 months previously. 
 Categorical variables are presented with n and percentage and tested for differences between groups using the chi-square test. 
 Continuous variables are presented with median [minimum, first quartile, third quartile, maximum], mean (standard deviation) and tested for differences between groups using the Kruskal-Wallis test. 
 
@@ -213,7 +213,7 @@ Continuous variables are presented with median [minimum, first quartile, third q
 
 ## Primary objective
 
-The primary objective is to describe the frequency of the different co-prescriptions of the drugs among the four pillars for the treatment of HFrEF, before and after the availability of dapagliflozin on the market for an HF indication, according to patients’ status at index date, i.e. patients with recent HF hospitalization (up to 3 months post-discharge) vs stable patients (all the others), area of hospitalization if any (cardiology or internal medicine) and patients’ clinical characteristics at index date.
+The primary objective is to describe the frequency of the different co-prescriptions of the drugs among the four pillars for the treatment of HFrEF, before and after the availability of dapagliflozin on the market for an HF indication, according to patients’ status at index date, i.e. patients with recent HF hospitalization (up to 3 months post-discharge) vs stable patients (all the others) and patients’ clinical characteristics at index date.
 
 {{< include src/primary.qmd >}}
 

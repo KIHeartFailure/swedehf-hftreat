@@ -104,6 +104,18 @@ primaryfunc_inner <- function(data, colvar, medvar, yearvar) {
       select(!!sym(yearvar), Medication, np) %>%
       ungroup() %>%
       pivot_wider(values_from = np, names_from = !!sym(yearvar))
+
+    # p-value
+    check <- data %>%
+      count(!!sym(yearvar), !!sym(medvar))
+    if (nrow(check) >= 4) {
+      p <- fn(chisq.test(data %>% pull(!!sym(yearvar)), data %>% pull(!!sym(medvar)))$p.value, p = T, dig = 3)
+    } else {
+      p <- ""
+    }
+
+    tab <- tab %>%
+      mutate(pvalue = p)
   } else {
     tab <- data %>%
       filter(!is.na(!!sym(colvar))) %>%
@@ -122,7 +134,26 @@ primaryfunc_inner <- function(data, colvar, medvar, yearvar) {
       filter(!!sym(medvar) == "Yes") %>%
       select(!!sym(yearvar), Medication, np, !!sym(colvar)) %>%
       pivot_wider(values_from = np, names_from = c(!!sym(colvar), !!sym(yearvar)))
+
+    levs <- levels(data %>% pull(!!sym(yearvar)))
+    for (i in seq_along(levs)) {
+      # p-value
+      check <- data %>%
+        filter(!!sym(yearvar) == levs[i] & !is.na(!!sym(colvar)))
+      if (nrow(check %>% count(!!sym(colvar))) >= 2 & nrow(check %>% count(!!sym(medvar))) >= 2) {
+        p <- fn(chisq.test(
+          data %>% filter(!!sym(yearvar) == levs[i]) %>% pull(!!sym(colvar)),
+          data %>% filter(!!sym(yearvar) == levs[i]) %>% pull(!!sym(medvar))
+        )$p.value, p = T, dig = 3)
+      } else {
+        p <- ""
+      }
+
+      tab <- tab %>%
+        mutate(!!sym(paste0("pvalue_", levs[i])) := p)
+    }
   }
+  return(tab)
 }
 
 primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_cat") {
@@ -160,9 +191,13 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
         Medication = "N"
       ) %>%
       select(!!sym(yearvar), Medication, np, !!sym(colvar)) %>%
-      pivot_wider(values_from = np, names_from = c(!!sym(colvar), !!sym(yearvar)))
+      pivot_wider(values_from = c(np), names_from = c(!!sym(colvar), !!sym(yearvar)))
 
     tab <- bind_rows(taball, tabtmp)
+
+    levs <- levels(data %>% pull(!!sym(yearvar)))
+    tab <- tab %>%
+      select(Medication, contains(levs[1]), contains(levs[2]))
   }
   tab <- tab %>%
     mutate(
@@ -182,6 +217,8 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
     colnames(tab) <- str_remove_all(colnames(tab), "_2016-2020|_2021-2023")
   }
 
+  colnames(tab) <- str_replace_all(colnames(tab), "pvalue", "p-value")
+
   # excel
   if (output) {
     make_one_xlsxsheet(tab)
@@ -200,7 +237,7 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
       footnote_order = c("general", "symbol", "alphabet"),
       general_title = "",
       general = c(
-        "Presented with n (%). The groups are not mutually exclusive and the percent will therfore not sum to 100."
+        "Presented with n (%) and tested with chi-square test. The groups are not mutually exclusive and the percent will therfore not sum to 100."
       ),
       threeparttable = T
     ) %>%
@@ -208,7 +245,7 @@ primaryfunc <- function(data = rsdata, colvar = NULL, yearvar = "shf_indexyear_c
 
   if (!is.null(colvar)) {
     if (colvar != "shf_indexyear") {
-      nlevs <- nlevels(data %>% pull(!!sym(colvar)))
+      nlevs <- nlevels(data %>% pull(!!sym(colvar))) + 1
       tabprint <- tabprint %>%
         add_header_above(c(" " = 1, "2016-2020" = nlevs, "2021-2023" = nlevs))
     }
@@ -250,17 +287,6 @@ primaryfunc(data = rsdatatmp, yearvar = "shf_indexyear")
 #| tbl-pos: "H"
 
 primaryfunc(colvar = "sos_prevhfh3mo")
-```
-
-```{r}
-#| label: tbl-primary-hospward
-#| cache: true
-#| cache.comments: false
-#| dependson: primaryfunc
-#| tbl-cap: "Beta-blocker, ACEi/ARB/ARNi, MRA, SGLT2i by area of previous HFH within 3 months"
-#| tbl-pos: "H"
-
-primaryfunc(colvar = "sos_hospward_3mo")
 ```
 
 ```{r}

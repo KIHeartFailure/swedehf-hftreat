@@ -11,7 +11,6 @@ tabvars <- c(
   # organizational
   "shf_durationhf",
   "sos_prevhfh3mo",
-  "sos_hospward_3mo",
   "sos_prevhfh1yr",
   "shf_followuphfunit",
   "shf_followuplocation_cat",
@@ -38,7 +37,7 @@ tabvars <- c(
 
   # comorbs
   "shf_smoke_cat",
-  "shf_sos_com_diabetes",
+  "shf_diabetes",
   "shf_diabetestype",
   "shf_sos_com_hypertension",
   "shf_sos_com_ihd",
@@ -145,7 +144,6 @@ stratavars <- c("shf_location")
 
 tabvarsel <- c(
   "sos_prevhfh3mo",
-  "sos_hospward_3mo",
   "shf_age_cat",
   "shf_sex",
   "shf_gfrckdepi_cat",

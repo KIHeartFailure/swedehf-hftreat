@@ -36,6 +36,7 @@ treatvars <- c("sos_lm_rasiarni", paste0("sos_lm_", lmvars %>% filter(!is.na(atc
 rsdata <- rsdata %>%
   mutate(
     shf_ef = droplevels(shf_ef),
+    shf_diabetestype = if_else(shf_diabetes == "No" & !is.na(shf_diabetes), "No", shf_diabetestype),
     shf_indexyear_cat = case_when(
       shf_indexyear <= 2020 ~ "2016-2020",
       shf_indexyear <= 2023 ~ "2021-2023"

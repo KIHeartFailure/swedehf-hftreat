@@ -164,8 +164,6 @@ overall <- sec3func_outer2(byvar = NULL, byvarname = "Overall", novars = NULL)
 
 sos_prevhfh3mo <- sec3func_outer3(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
 
-sos_hospward_3mo <- sec3func_outer3(byvar = "sos_hospward_3mo", byvarname = "HFH", novars = "sos_prevhfh3mo")
-
 age <- sec3func_outer3(byvar = "shf_age_cat", byvarname = "Age")
 
 sex <- sec3func_outer3(byvar = "shf_sex", byvarname = "")
@@ -176,7 +174,7 @@ cci <- sec3func_outer3(byvar = "sos_com_charlsonci_cat", byvarname = "Charlson C
 
 meds <- sec3func_outer3(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
-outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, egfr, cci, meds)
+outall <- bind_rows(overall, sos_prevhfh3mo, age, sex, egfr, cci, meds)
 ```
 
 ```{r}

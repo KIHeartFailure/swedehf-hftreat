@@ -142,8 +142,6 @@ overall <- outcomesfunc_outer(byvar = NULL, lev = NULL, byvarname = "Overall", n
 
 sos_prevhfh3mo <- outcomesfunc_outer2(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
 
-sos_hospward_3mo <- outcomesfunc_outer2(byvar = "sos_hospward_3mo", byvarname = "HFH", novars = "sos_prevhfh3mo")
-
 age <- outcomesfunc_outer2(byvar = "shf_age_cat", byvarname = "Age")
 
 sex <- outcomesfunc_outer2(byvar = "shf_sex", byvarname = "")
@@ -154,7 +152,7 @@ cci <- outcomesfunc_outer2(byvar = "sos_com_charlsonci_cat", byvarname = "Charls
 
 meds <- outcomesfunc_outer2(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
-outall <- bind_rows(overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, egfr, cci, meds)
+outall <- bind_rows(overall, sos_prevhfh3mo, age, sex, egfr, cci, meds)
 
 if (output) {
   make_one_xlsxsheet(outall)

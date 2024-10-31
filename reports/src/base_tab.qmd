@@ -335,17 +335,3 @@ basetabfunc <- function(data, novars = NULL, stratavar, overall = F, tabheader) 
 
 basetabfunc(data = rsdata, stratavar = "sos_prevhfh3mo", novars = c("sos_prevhfh3mo"), overall = T, tabheader = "Previous HFH within 3 months")
 ```
-
-```{r}
-#| label: tbl-base-areahosp
-#| cache: true
-#| cache.comments: false
-#| dependson: basetabfunc
-#| tbl-cap: "Baseline characteristics by area of previous HFH within 3 months"
-#| tbl-pos: "H"
-
-basetabfunc(
-  data = rsdata %>% filter(sos_prevhfh3mo == "Yes"), stratavar = "sos_hospward_3mo",
-  novars = c("sos_prevhfh1yr", "sos_hospward_3mo", "sos_prevhfh3mo"), tabheader = "Area of previous HFH within 3 months"
-)
-```

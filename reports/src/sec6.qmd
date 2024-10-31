@@ -240,8 +240,7 @@ default_kable(taball,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Presented with n (%).",
-      "Abbreviations: MRA, Mineralocorticoid receptor antagonist; SGLT2i, Sodium-Glucose Transport Protein 2"
+      "Presented with n (%)."
     )
   )
 ```
@@ -408,8 +407,7 @@ default_kable(taball,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
-      "Presented with n (%), median [minimum, q1, q3, maximum], mean (standard deviation).",
-      "Abbreviations: MRA, Mineralocorticoid receptor antagonist; SGLT2i, Sodium-Glucose Transport Protein 2"
+      "Presented with n (%), median [minimum, q1, q3, maximum], mean (standard deviation)."
     )
   )
 ```

@@ -110,8 +110,6 @@ overall <- sec2func_outer(byvar = NULL, byvarname = "Overall")
 
 sos_prevhfh3mo <- sec2func_outer(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
 
-sos_hospward_3mo <- sec2func_outer(byvar = "sos_hospward_3mo", byvarname = "HFH")
-
 age <- sec2func_outer(byvar = "shf_age_cat", byvarname = "Age")
 
 sex <- sec2func_outer(byvar = "shf_sex", byvarname = "")
@@ -139,7 +137,7 @@ tabn <- rsdatatmp %>%
   select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
   pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
 
-taball <- bind_rows(tabn, overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, egfr, cci, meds)
+taball <- bind_rows(tabn, overall, sos_prevhfh3mo, age, sex, egfr, cci, meds)
 
 taball <- taball %>%
   mutate(
