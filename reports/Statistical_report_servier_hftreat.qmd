@@ -350,6 +350,10 @@ The secondary objective 14 is to report the number  of patients who are simultan
 
 {{< include src/sec14.qmd >}}
 
+### Add hoc analyses 
+
+{{< include src/adhoc_1.qmd >}}
+
 \clearpage
 
 # Reproducibility

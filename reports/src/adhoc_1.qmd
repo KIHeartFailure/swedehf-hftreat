@@ -1,0 +1,75 @@
+
+```{r}
+#| label: tbl-adhoc-1
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "N (%) by molecule"
+#| tbl-pos: "H"
+
+medvars <- c("bbl", "acei", "arb", "arni", "mra", "sglt2i")
+
+secadhoc1func <- function(medvar) {
+  tab <- rsdata %>%
+    filter(!!sym(paste0("sos_lm_", medvar)) == "Yes") %>%
+    group_by(shf_indexyear_cat) %>%
+    count(!!sym(paste0("ATC_sos_lm_", medvar)), .drop = F) %>%
+    mutate(
+      np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+      out = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ np
+      ),
+      var = medvar
+    ) %>%
+    ungroup() %>%
+    rename(
+      atcvar = !!sym(paste0("ATC_sos_lm_", medvar))
+    ) %>%
+    select(shf_indexyear_cat, var, atcvar, out) %>%
+    pivot_wider(values_from = out, names_from = shf_indexyear_cat)
+}
+
+tab <- lapply(medvars,
+  FUN = secadhoc1func
+)
+tab <- bind_rows(tab)
+
+tab <- tab %>%
+  mutate(
+    `2016-2020` = if_else(var == "sglt2i", "", `2016-2020`),
+    var = factor(case_when(
+      var == "bbl" ~ 1,
+      var == "acei" ~ 2,
+      var == "arb" ~ 3,
+      var == "arni" ~ 4,
+      var == "mra" ~ 5,
+      var == "sglt2i" ~ 6,
+    ), levels = 1:6, labels = c("Beta-blocker", "ACEi", "ARB", "ARNi", "MRA", "SGLT2i"))
+  )
+
+tab <- left_join(tab, lmvarsub %>% select(-med), by = c("atcvar" = "atc")) %>%
+  mutate(atcvar = sub) %>%
+  select(-sub)
+
+colnames(tab) <- c("Medication", "Molecule", levels(rsdata %>% pull(shf_indexyear_cat)))
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = F
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Presented with n (%) within Medication."
+    )
+  )
+```
