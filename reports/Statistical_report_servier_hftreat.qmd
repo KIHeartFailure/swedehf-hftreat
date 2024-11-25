@@ -195,9 +195,62 @@ percfem <- rsdata %>%
   mutate(perc = fn(n / sum(n) * 100, 0)) %>%
   filter(shf_sex == "Female") %>%
   pull(perc)
+
+medsurv <- rsdata %>%
+  summarise(
+    med = fn(median(sos_outtime_death / 30.55), dig = 0),
+    mean = fn(mean(sos_outtime_death / 30.5), dig = 0),
+    sd = fn(sd(sos_outtime_death / 30.5, na.rm = T), dig = 0),
+    min = fn(min(sos_outtime_death / 30.5), dig = 0),
+    max = fn(max(sos_outtime_death / 30.5), dig = 0),
+    q1 = fn(quantile(sos_outtime_death / 30.5, probs = 0.25), dig = 0),
+    q3 = fn(quantile(sos_outtime_death / 30.5, probs = 0.75), dig = 0)
+  ) %>%
+  mutate(out = paste0(
+    med, " [", min, ", ", q1, ", ",
+    q3, ", ", max, "], ", mean, " (", sd, ")"
+  )) %>%
+  pull(out)
+
+medsurv1 <- rsdata %>%
+  filter(shf_indexyear_cat == "2016-2020") %>%
+  summarise(
+    med = fn(median(sos_outtime_death / 30.55), dig = 0),
+    mean = fn(mean(sos_outtime_death / 30.5), dig = 0),
+    sd = fn(sd(sos_outtime_death / 30.5, na.rm = T), dig = 0),
+    min = fn(min(sos_outtime_death / 30.5), dig = 0),
+    max = fn(max(sos_outtime_death / 30.5), dig = 0),
+    q1 = fn(quantile(sos_outtime_death / 30.5, probs = 0.25), dig = 0),
+    q3 = fn(quantile(sos_outtime_death / 30.5, probs = 0.75), dig = 0)
+  ) %>%
+  mutate(out = paste0(
+    med, " [", min, ", ", q1, ", ",
+    q3, ", ", max, "], ", mean, " (", sd, ")"
+  )) %>%
+  pull(out)
+
+medsurv2 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  summarise(
+    med = fn(median(sos_outtime_death / 30.55), dig = 0),
+    mean = fn(mean(sos_outtime_death / 30.5), dig = 0),
+    sd = fn(sd(sos_outtime_death / 30.5, na.rm = T), dig = 0),
+    min = fn(min(sos_outtime_death / 30.5), dig = 0),
+    max = fn(max(sos_outtime_death / 30.5), dig = 0),
+    q1 = fn(quantile(sos_outtime_death / 30.5, probs = 0.25), dig = 0),
+    q3 = fn(quantile(sos_outtime_death / 30.5, probs = 0.75), dig = 0)
+  ) %>%
+  mutate(out = paste0(
+    med, " [", min, ", ", q1, ", ",
+    q3, ", ", max, "], ", mean, " (", sd, ")"
+  )) %>%
+  pull(out)
 ```
 
 The median (q1-q3) age is `r med` and `r percfem`% females.    
+
+The median [minimum, q1, q3, maximum], mean (standard deviation) follow-up time (months) was `r medsurv` for the overall 
+population and `r medsurv1` for patients included 2016-2020 and `r medsurv2` for patients included 2021-2023. 
 
 ## Baseline characteristics
 
