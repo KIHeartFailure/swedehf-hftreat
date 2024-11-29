@@ -1,0 +1,153 @@
+
+```{r}
+#| label: tbl-adhoc-2
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Bisoprolol doses"
+#| tbl-pos: "H"
+
+tab <- rsdata %>%
+  filter(ATC_sos_lm_bbl == "C07AB07" & !is.na(ATC_sos_lm_bbl)) %>%
+  count(dose_sos_lm_bbl) %>%
+  filter(n >= 10) %>%
+  mutate(
+    out = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")
+  ) %>%
+  select(dose_sos_lm_bbl, out)
+
+colnames(tab) <- c("Dose Bisoprolol", "N (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = F
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Doses with N < 10 are not presented."
+    )
+  )
+```
+
+```{r}
+#| label: tbl-adhoc-3
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Eplerenone doses"
+#| tbl-pos: "H"
+
+tab <- rsdata %>%
+  filter(ATC_sos_lm_mra == "C03DA04" & !is.na(ATC_sos_lm_mra)) %>%
+  count(dose_sos_lm_mra) %>%
+  filter(n >= 10) %>%
+  mutate(
+    out = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")
+  ) %>%
+  select(dose_sos_lm_mra, out)
+
+colnames(tab) <- c("Dose Eplerenone", "N (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = F
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Doses with N < 10 are not presented."
+    )
+  )
+```
+
+```{r}
+#| label: tbl-adhoc-4
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Furosemide doses"
+#| tbl-pos: "H"
+
+tab <- rsdata %>%
+  filter(!is.na(fu_sos_lm_1yr) & ATC_sos_lm_loopdiuretics == "C03CA01" & !is.na(ATC_sos_lm_loopdiuretics)) %>%
+  count(dose_sos_lm_loopdiuretics) %>%
+  filter(n >= 10) %>%
+  mutate(
+    out = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")
+  ) %>%
+  select(dose_sos_lm_loopdiuretics, out)
+
+colnames(tab) <- c("Dose Furosemide", "N (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  scale_down = F
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Doses with N < 10 are not presented."
+    )
+  )
+```
+
+```{r}
+#| label: tbl-adhoc-5
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Furosemide doses"
+#| tbl-pos: "H"
+
+tab <- rsdata %>%
+  filter(ATC_sos_lm_loopdiuretics == "C03CA01" & !is.na(ATC_sos_lm_loopdiuretics) & !is.na(dosefu_sos_lm_C03CA01_6mo) & !is.na(dosefu_sos_lm_C03CA01_1yr)) %>%
+  count(dose_sos_lm_loopdiuretics, dosefu_sos_lm_C03CA01_6mo, dosefu_sos_lm_C03CA01_1yr) %>%
+  filter(n >= 10) %>%
+  mutate(
+    out = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")
+  ) %>%
+  select(dose_sos_lm_loopdiuretics, dosefu_sos_lm_C03CA01_6mo, dosefu_sos_lm_C03CA01_1yr, out)
+
+colnames(tab) <- c("Dose Furosemide at baseline", "Dose Furosemide at 6 months", "Dose Furosemide at 1 year", "N (%)")
+
+# excel
+if (output) {
+  make_one_xlsxsheet(tab)
+}
+
+colnames(tab) <- sanitize_text(colnames(tab))
+
+default_kable(tab,
+  escape = FALSE,
+  font_size = 7,
+  longtable = TRUE
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Dose combinations with N < 10 are not presented."
+    )
+  )
+```

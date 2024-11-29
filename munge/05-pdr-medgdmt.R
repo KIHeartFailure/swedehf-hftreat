@@ -338,7 +338,7 @@ lmadhere6 <- lmadhere5 %>%
 
 rsdata <- left_join(rsdata, lmadhere6, by = "lopnr")
 
-# dose at 6 mo and 1 year for dapa and biso
+# dose at 6 mo and 1 year for dapa and biso and furosemide
 lmfu <- lmgdmt4 %>%
   mutate(
     fu = case_when(
@@ -350,7 +350,7 @@ lmfu <- lmgdmt4 %>%
       fu == "1yr" ~ diff - 365
     )
   ) %>%
-  filter(!is.na(fu) & ATC %in% c("C07AB07", "A10BK01")) %>%
+  filter(!is.na(fu) & ATC %in% c("C07AB07", "A10BK01", "C03CA01")) %>%
   group_by(lopnr, ATC, fu) %>%
   arrange(diffsort) %>%
   slice(1) %>%
