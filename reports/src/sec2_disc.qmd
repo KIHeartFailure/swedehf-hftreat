@@ -50,6 +50,20 @@ rsdatatmp <- rsdata %>%
 
 sec2discfunc <- function(medvar, byvar = NULL, byvarname) {
   if (is.null(byvar)) {
+    taboverall <- rsdatatmp %>%
+      filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar))) %>%
+      count(!!sym(medvar), .drop = F) %>%
+      mutate(Overall = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      mutate(
+        Overall = case_when(
+          n < 10 ~ "<10",
+          TRUE ~ Overall
+        ),
+        Strata = byvarname,
+        Medication = medvar
+      ) %>%
+      filter(!!sym(medvar) == "Yes") %>%
+      select(Strata, Medication, Overall)
     tab <- rsdatatmp %>%
       filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar))) %>%
       group_by(shf_indexyear_cat, sos_lm_gdmt, .drop = F) %>%
@@ -74,6 +88,22 @@ sec2discfunc <- function(medvar, byvar = NULL, byvarname) {
       select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
       pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
   } else {
+    taboverall <- rsdatatmp %>%
+      filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar)) & !is.na(!!sym(byvar))) %>%
+      group_by(!!sym(byvar), .drop = F) %>%
+      count(!!sym(medvar), .drop = F) %>%
+      mutate(Overall = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+      ungroup() %>%
+      mutate(
+        Overall = case_when(
+          n < 10 ~ "<10",
+          TRUE ~ Overall
+        ),
+        Strata = paste0(byvarname, " ", !!sym(byvar)),
+        Medication = medvar
+      ) %>%
+      filter(!!sym(medvar) == "Yes") %>%
+      select(Strata, Medication, Overall)
     tab <- rsdatatmp %>%
       filter(sos_lm_gdmt != "None" & !is.na(!!sym(medvar)) & !is.na(!!sym(byvar))) %>%
       group_by(shf_indexyear_cat, sos_lm_gdmt, !!sym(byvar), .drop = F) %>%
@@ -98,6 +128,7 @@ sec2discfunc <- function(medvar, byvar = NULL, byvarname) {
       select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
       pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
   }
+  tab <- full_join(taboverall, tab, by = c("Strata", "Medication"))
 }
 
 treatvarsdisc <- c(
@@ -130,6 +161,21 @@ cci <- sec2discfunc_outer(byvar = "sos_com_charlsonci_cat", byvarname = "Charlso
 
 meds <- sec2discfunc_outer(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
 
+
+tabnoverall <- rsdatatmp %>%
+  filter(sos_lm_gdmt != "None") %>%
+  count() %>%
+  mutate(Overall = paste0(n)) %>%
+  mutate(
+    Overall = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ Overall
+    ),
+    Strata = "N",
+    Medication = ""
+  ) %>%
+  select(Strata, Medication, Overall)
+
 tabn <- rsdatatmp %>%
   filter(sos_lm_gdmt != "None") %>%
   group_by(shf_indexyear_cat, sos_lm_gdmt) %>%
@@ -146,6 +192,8 @@ tabn <- rsdatatmp %>%
   ungroup() %>%
   select(shf_indexyear_cat, sos_lm_gdmt, Strata, Medication, np) %>%
   pivot_wider(values_from = np, names_from = c(shf_indexyear_cat, sos_lm_gdmt))
+
+tabn <- full_join(tabnoverall, tabn, by = c("Strata", "Medication"))
 
 taball <- bind_rows(tabn, overall, sos_prevhfh3mo, sos_hospward_3mo, age, sex, egfr, cci, meds)
 
@@ -187,9 +235,9 @@ colnames(taball) <- str_remove_all(colnames(taball), "2016-2020_|2021-2023_")
 default_kable(taball,
   escape = FALSE,
   longtable = T,
-  font_size = 5.5
+  font_size = 4
 ) %>%
-  add_header_above(c(" " = 2, "2016-2020" = 3, "2021-2023" = 4)) %>%
+  add_header_above(c(" " = 3, "2016-2020" = 3, "2021-2023" = 4)) %>%
   footnote(
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
