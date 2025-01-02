@@ -1,0 +1,221 @@
+```{r}
+#| label: addtabfunc
+#| cache: true
+#| cache.comments: false
+
+tabfunc <- function(xvar, text, data) {
+  tab <- data %>%
+    count(!!sym(xvar)) %>%
+    mutate(
+      np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+      out = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ np
+      ),
+      var = text
+    ) %>%
+    filter(!!sym(xvar) == 1) %>%
+    select(var, out)
+}
+tab2func <- function(groupvars, filt1 = 10, filt2, filt3 = NULL, text, data) {
+  tab <- data %>%
+    count(!!!syms(groupvars)) %>%
+    mutate(
+      np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+      out = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ np
+      )
+    )
+
+  if (is.null(filt3)) {
+    tab <- tab %>%
+      filter(!!sym(groupvars[1]) %in% c(filt1) & !!sym(groupvars[2]) %in% c(filt2)) %>%
+      mutate(var = paste0("Patients treated by ", text[1], " ", !!sym(groupvars[1]), "mg + ", text[2], " ", !!sym(groupvars[2]), "mg**"))
+  }
+  if (!is.null(filt3)) {
+    tab <- tab %>%
+      filter(!!sym(groupvars[1]) %in% c(filt1) & !!sym(groupvars[2]) %in% c(filt2) & !!sym(groupvars[3]) %in% c(filt3)) %>%
+      mutate(var = paste0("Patients treated by ", text[1], " ", !!sym(groupvars[1]), "mg + ", text[2], " ", !!sym(groupvars[2]), "mg + ", text[3], " ", !!sym(groupvars[3]), "mg**"))
+  }
+  tab <- tab %>%
+    select(var, out)
+}
+tab3func <- function(groupvars, xvar, filt = NULL, data, groupvartext) {
+  tab <- data %>%
+    count(!!!syms(groupvars), !!sym(xvar)) %>%
+    mutate(
+      np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+      out = case_when(
+        n == 0 ~ "-",
+        n < 10 ~ "<10",
+        TRUE ~ np
+      )
+    ) %>%
+    rename(atc = !!sym(xvar))
+
+  if (!is.null(filt)) {
+    tab <- tab %>%
+      filter(atc %in% c(filt))
+  }
+
+  tab <- left_join(tab, lmvarsub, by = "atc") %>%
+    mutate(var = paste0("Patients treated by ", paste0(groupvartext, collapse = " + "), " + ", sub, "***")) %>%
+    select(var, out)
+}
+```
+
+```{r}
+#| label: tbl-dapagliflozine-eplerenone
+#| cache: true
+#| cache.comments: false
+#| dependson: addtabfunc
+#| tbl-cap: "Dapagliflozine/Eplerenone"
+#| tbl-pos: "H"
+
+tmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(
+    subvar = case_when(
+      !is.na(ATC_sos_lm_sglt2i) & ATC_sos_lm_sglt2i == "A10BK01" &
+        !is.na(ATC_sos_lm_mra) & ATC_sos_lm_mra == "C03DA04" ~ 1,
+      TRUE ~ 0
+    ),
+    medvar = case_when(
+      sos_lm_sglt2i == "Yes" &
+        sos_lm_mra == "Yes" ~ 1,
+      TRUE ~ 0
+    )
+  )
+tab1 <- tabfunc("medvar", "Patients treated by SGLT2i + MRA*", tmp)
+tab2 <- tabfunc("subvar", "Patients treated by Dapagliflozin + Eplerenone***", tmp %>% filter(medvar == 1))
+tab3 <- tab2func(groupvars = c("dose_sos_lm_sglt2i", "dose_sos_lm_mra"), filt2 = c(25, 50), text = c("Dapagliflozin", "Eplerenone"), data = tmp %>% filter(subvar == 1))
+tab4 <- tab3func(groupvars = "sos_lm_sglt2i", xvar = "ATC_sos_lm_mra", data = tmp %>% filter(medvar == 1), groupvartext = "SGLT2i")
+tab5 <- tab3func(groupvars = "sos_lm_mra", xvar = "ATC_sos_lm_sglt2i", data = tmp %>% filter(medvar == 1), groupvartext = "MRA")
+
+taball <- bind_rows(tab1, tab2, tab3, tab4, tab5)
+
+colnames(taball) <- c("Description", "N (%)")
+
+tab_xls <- taball %>%
+  add_row(Description = "") %>%
+  add_row(Description = "* % within all patients 2021-2023") %>%
+  add_row(Description = "** % within all patients with Dapagliflozin + Eplerenone 2021-2023") %>%
+  add_row(Description = "*** % within all patients with SGLT2i + MRA 2021-2023")
+
+# excel
+make_one_xlsxsheet(tab_xls)
+
+default_kable(taball,
+  escape = TRUE,
+  scale_down = F
+)
+```
+
+```{r}
+#| label: tbl-dapagliflozine-bisoprolol
+#| cache: true
+#| cache.comments: false
+#| dependson: addtabfunc
+#| tbl-cap: "Dapagliflozine/Bisoprolol"
+#| tbl-pos: "H"
+
+tmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(
+    subvar = case_when(
+      !is.na(ATC_sos_lm_sglt2i) & ATC_sos_lm_sglt2i == "A10BK01" &
+        !is.na(ATC_sos_lm_bbl) & ATC_sos_lm_bbl == "C07AB07" ~ 1,
+      TRUE ~ 0
+    ),
+    medvar = case_when(
+      sos_lm_sglt2i == "Yes" &
+        sos_lm_bbl == "Yes" ~ 1,
+      TRUE ~ 0
+    )
+  )
+
+tab1 <- tabfunc("medvar", "Patients treated by SGLT2i + Beta-blocker*", tmp)
+tab2 <- tabfunc("subvar", "Patients treated by Dapagliflozin + Bisoprolol***", tmp %>% filter(medvar == 1))
+tab3 <- tab2func(
+  groupvars = c("dose_sos_lm_sglt2i", "dose_sos_lm_bbl"), filt2 = c(1.25, 2.5, 3.75, 5, 7.5, 10), text = c("Dapagliflozin", "Bisoprolol"),
+  data = tmp %>% filter(subvar == 1)
+)
+tab4 <- tab3func(groupvars = "sos_lm_sglt2i", xvar = "ATC_sos_lm_bbl", data = tmp %>% filter(medvar == 1), groupvartext = "SGLT2i")
+tab5 <- tab3func(groupvars = "sos_lm_bbl", xvar = "ATC_sos_lm_sglt2i", data = tmp %>% filter(medvar == 1), groupvartext = "Beta-blocker")
+
+taball <- bind_rows(tab1, tab2, tab3, tab4, tab5)
+
+colnames(taball) <- c("Description", "N (%)")
+
+tab_xls <- taball %>%
+  add_row(Description = "") %>%
+  add_row(Description = "* % within all patients 2021-2023") %>%
+  add_row(Description = "** % within all patients with Dapagliflozin + Bisoprolol 2021-2023") %>%
+  add_row(Description = "*** % within all patients with SGLT2i + Beta-blocker 2021-2023")
+
+# excel
+make_one_xlsxsheet(tab_xls)
+
+default_kable(taball,
+  escape = TRUE,
+  scale_down = F
+)
+```
+
+```{r}
+#| label: tbl-dapa-bis-eple
+#| cache: true
+#| cache.comments: false
+#| dependson: addtabfunc
+#| tbl-cap: "Dapagliflozine/Bisoprolol/Eplerenone"
+#| tbl-pos: "H"
+
+tmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(
+    subvar = case_when(
+      !is.na(ATC_sos_lm_sglt2i) & ATC_sos_lm_sglt2i == "A10BK01" &
+        !is.na(ATC_sos_lm_bbl) & ATC_sos_lm_bbl == "C07AB07" &
+        !is.na(ATC_sos_lm_mra) & ATC_sos_lm_mra == "C03DA04" ~ 1,
+      TRUE ~ 0
+    ),
+    medvar = case_when(
+      sos_lm_sglt2i == "Yes" &
+        sos_lm_bbl == "Yes" &
+        sos_lm_mra == "Yes" ~ 1,
+      TRUE ~ 0
+    )
+  )
+tab1 <- tabfunc("medvar", "Patients treated by SGLT2i + Beta-blocker + MRA*", tmp)
+tab2 <- tabfunc("subvar", "Patients treated by Dapagliflozin + Bisoprolol + Eplerenone***", tmp %>% filter(medvar == 1))
+
+tab3 <- tab2func(
+  groupvars = c("dose_sos_lm_sglt2i", "dose_sos_lm_bbl", "dose_sos_lm_mra"), filt2 = c(1.25, 2.5, 3.75, 5, 7.5, 10),
+  filt3 = c(25, 50), text = c("Dapagliflozin", "Bisoprolol", "Eplerenone"),
+  data = tmp %>% filter(subvar == 1)
+)
+tab4 <- tab3func(groupvars = c("sos_lm_sglt2i", "sos_lm_mra"), xvar = "ATC_sos_lm_bbl", data = tmp %>% filter(medvar == 1), groupvartext = c("SGLT2i", "MRA"))
+tab5 <- tab3func(groupvars = c("sos_lm_bbl", "sos_lm_mra"), xvar = "ATC_sos_lm_sglt2i", data = tmp %>% filter(medvar == 1), groupvartext = c("Beta-blocker", "MRA"))
+tab6 <- tab3func(groupvars = c("sos_lm_sglt2i", "sos_lm_bbl"), xvar = "ATC_sos_lm_mra", data = tmp %>% filter(medvar == 1), groupvartext = c("SGLT2i", "Beta-blocker"))
+
+taball <- bind_rows(tab1, tab2, tab3, tab4, tab5, tab6)
+
+colnames(taball) <- c("Description", "N (%)")
+
+tab_xls <- taball %>%
+  add_row(Description = "") %>%
+  add_row(Description = "* % within all patients 2021-2023") %>%
+  add_row(Description = "** % within all patients with Dapagliflozin + Bisoprolol + Eplerenone 2021-2023") %>%
+  add_row(Description = "*** % within all patients with SGLT2i + Beta-blocker + MRA 2021-2023")
+
+# excel
+make_one_xlsxsheet(tab_xls)
+
+default_kable(taball,
+  escape = TRUE,
+  scale_down = F
+)
+```

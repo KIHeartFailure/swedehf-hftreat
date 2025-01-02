@@ -1,0 +1,103 @@
+```{r}
+#| label: tbl-furosemide-combinations
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Dose"
+#| tbl-pos: "H"
+
+tab1 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(var = if_else(!is.na(ATC_sos_lm_loopdiuretics) & ATC_sos_lm_loopdiuretics == "C03CA01", 1, 0)) %>%
+  count(var) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+    name = "Furosemide"
+  ) %>%
+  filter(var == 1) %>%
+  select(name, np)
+
+tab2 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(var = if_else(!is.na(ATC_sos_lm_loopdiuretics) & ATC_sos_lm_loopdiuretics == "C03CA01" & sos_lm_sglt2i == "Yes", 1, 0)) %>%
+  count(var) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+    name = "Furosemide + SGLT2i"
+  ) %>%
+  filter(var == 1) %>%
+  select(name, np)
+
+tab3 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(var = if_else(!is.na(ATC_sos_lm_loopdiuretics) & ATC_sos_lm_loopdiuretics == "C03CA01" &
+    sos_lm_sglt2i == "Yes" & ATC_sos_lm_sglt2i == "A10BK01", 1, 0)) %>%
+  count(var) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+    name = "Furosemide + Dapagliflozine"
+  ) %>%
+  filter(var == 1) %>%
+  select(name, np)
+
+tab4 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(var = if_else(!is.na(ATC_sos_lm_loopdiuretics) & ATC_sos_lm_loopdiuretics == "C03CA01" & sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes", 1, 0)) %>%
+  count(var) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+    name = "Furosemide + SGLT2i + Beta-blocker"
+  ) %>%
+  filter(var == 1) %>%
+  select(name, np)
+
+tab5 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(var = if_else(!is.na(ATC_sos_lm_loopdiuretics) & ATC_sos_lm_loopdiuretics == "C03CA01" &
+    sos_lm_sglt2i == "Yes" & ATC_sos_lm_sglt2i == "A10BK01" &
+    sos_lm_bbl == "Yes" & ATC_sos_lm_bbl == "C07AB07", 1, 0)) %>%
+  count(var) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+    name = "Furosemide + Dapagliflozine + Bisoprolol"
+  ) %>%
+  filter(var == 1) %>%
+  select(name, np)
+
+tab6 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(var = if_else(!is.na(ATC_sos_lm_loopdiuretics) & ATC_sos_lm_loopdiuretics == "C03CA01" & sos_lm_sglt2i == "Yes" & sos_lm_bbl == "Yes" & sos_lm_mra == "Yes", 1, 0)) %>%
+  count(var) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+    name = "Furosemide + SGLT2i + Beta-blocker + MRA"
+  ) %>%
+  filter(var == 1) %>%
+  select(name, np)
+
+tab7 <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023") %>%
+  mutate(var = if_else(!is.na(ATC_sos_lm_loopdiuretics) & ATC_sos_lm_loopdiuretics == "C03CA01" &
+    sos_lm_sglt2i == "Yes" & ATC_sos_lm_sglt2i == "A10BK01" &
+    sos_lm_bbl == "Yes" & ATC_sos_lm_bbl == "C07AB07" &
+    sos_lm_mra == "Yes" & ATC_sos_lm_mra == "C03DA04",
+  1, 0
+  )) %>%
+  count(var) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")"),
+    name = "Furosemide + Dapagliflozine + Bisoprolol + Eplerenone"
+  ) %>%
+  filter(var == 1) %>%
+  select(name, np)
+
+tab <- bind_rows(tab1, tab2, tab3, tab4, tab5, tab6, tab7)
+
+colnames(tab) <- c("Furosemide dose (mg)", "N (%)")
+# excel
+make_one_xlsxsheet(tab)
+
+default_kable(tab,
+  escape = TRUE,
+  scale_down = F
+)
+```

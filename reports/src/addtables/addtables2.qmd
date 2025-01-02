@@ -1,0 +1,111 @@
+```{r}
+#| label: tbl-bisoprolol-dose
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Dose"
+#| tbl-pos: "H"
+
+tab <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023" & ATC_sos_lm_bbl == "C07AB07") %>%
+  count(dose_sos_lm_bbl) %>%
+  mutate(
+    np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")
+  ) %>%
+  filter(n > 10) %>%
+  select(dose_sos_lm_bbl, np)
+
+colnames(tab) <- c("Bisoprolol dose (mg)", "N (%)")
+# excel
+make_one_xlsxsheet(tab)
+
+default_kable(tab,
+  escape = TRUE,
+  scale_down = F
+)
+```
+
+```{r}
+#| label: tbl-bisoprolol
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Change in dosage for patients taking bisoprolol at baseline and 6 months and 1 year 2021-2023"
+#| tbl-pos: "H"
+
+rsdatatmp <- rsdata %>%
+  filter(shf_indexyear_cat == "2021-2023" & ATC_sos_lm_bbl == "C07AB07") %>%
+  mutate(
+    dosechangebbl_6mo = factor(case_when(
+      is.na(fu_sos_lm_6mo) | fu_sos_lm_6mo == 0 ~ NA_real_,
+      dose_sos_lm_bbl == dosefu_sos_lm_C07AB07_6mo ~ 1,
+      dose_sos_lm_bbl > dosefu_sos_lm_C07AB07_6mo ~ 2,
+      dose_sos_lm_bbl < dosefu_sos_lm_C07AB07_6mo ~ 3
+    ), levels = 1:3, labels = c("No change", "Decrease from baseline", "Increase from baseline")),
+    dosechangebbl_1yr = factor(case_when(
+      is.na(fu_sos_lm_1yr) | fu_sos_lm_1yr == 0 ~ NA_real_,
+      dose_sos_lm_bbl == dosefu_sos_lm_C07AB07_1yr ~ 1,
+      dose_sos_lm_bbl > dosefu_sos_lm_C07AB07_1yr ~ 2,
+      dose_sos_lm_bbl < dosefu_sos_lm_C07AB07_1yr ~ 3
+    ), levels = 1:3, labels = c("No change", "Decrease from baseline", "Increase from baseline"))
+  )
+
+tab6mo <- rsdatatmp %>%
+  filter(!is.na(fu_sos_lm_6mo) & fu_sos_lm_6mo == 1) %>%
+  count(dosechangebbl_6mo, .drop = F) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    )
+  )
+tab6mon <- rsdatatmp %>%
+  filter(!is.na(fu_sos_lm_6mo) & fu_sos_lm_6mo == 1) %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    dosechangebbl_6mo = "N"
+  )
+tab6mo <- rbind(tab6mon, tab6mo) %>% select(dosechangebbl_6mo, np)
+
+tab1yr <- rsdatatmp %>%
+  filter(!is.na(fu_sos_lm_1yr) & fu_sos_lm_1yr == 1) %>%
+  count(dosechangebbl_1yr, .drop = F) %>%
+  mutate(np = paste0(n, " (", fn(n / sum(n) * 100, 1), ")")) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    )
+  )
+
+tab1yrn <- rsdatatmp %>%
+  filter(!is.na(fu_sos_lm_1yr) & fu_sos_lm_1yr == 1) %>%
+  count() %>%
+  mutate(np = paste0(n)) %>%
+  mutate(
+    np = case_when(
+      n < 10 ~ "<10",
+      TRUE ~ np
+    ),
+    dosechangebbl_1yr = "N"
+  )
+tab1yr <- rbind(tab1yrn, tab1yr) %>% select(dosechangebbl_1yr, np)
+
+colnames(tab6mo) <- c("Change in Bisoprolol dose", "6 months")
+colnames(tab1yr) <- c("Change in Bisoprolol dose", "1 year")
+
+tabboth <- full_join(tab6mo, tab1yr, by = c("Change in Bisoprolol dose"))
+
+# excel
+make_one_xlsxsheet(tabboth)
+
+
+default_kable(tabboth,
+  escape = TRUE,
+  scale_down = F
+)
+```

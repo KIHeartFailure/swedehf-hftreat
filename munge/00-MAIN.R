@@ -52,6 +52,14 @@ openxlsx::saveWorkbook(wb,
   overwrite = TRUE
 )
 
+wb <- openxlsx::createWorkbook()
+openxlsx::addWorksheet(wb, sheet = "Information")
+openxlsx::writeData(wb, sheet = "Information", x = "Tables in xlsx format for additonal tables for years 2021-2023 for the project Heart Failure treatment patterns in real world", rowNames = FALSE, keepNA = FALSE)
+openxlsx::saveWorkbook(wb,
+  file = here::here("output/tabs/tables.xlsx"),
+  overwrite = TRUE
+)
+
 # create powerpoint to write figs to PowerPoint
 figs <- officer::read_pptx()
 print(figs, target = here::here("output/figs/figs.pptx"))

@@ -1,0 +1,149 @@
+---
+title: "Statistical report: Heart Failure treatment patterns in real world"
+date: "`r Sys.Date()`"
+cover: static/ki_logo_vert_rgb.png
+editor: source
+format:
+  pdf:
+    documentclass: scrartcl
+    template-partials:
+      - "static/before-body.tex"
+      - "static/_titlepage.tex"
+    include-in-header: 
+      - "static/in-header.tex"
+    toc: true
+    toc-depth: 3
+    toc-title: Contents
+    lot: true
+    cap-location: top
+    number-sections: true
+    colorlinks: false
+    keep-tex: false
+bibliography: static/referencesadd.bib
+csl: static/bmj.csl
+link-citations: true
+link-bibliography: true
+nocite: '@*'
+knitr:
+  opts_chunk: 
+    dev: cairo_pdf
+    collapse: true
+    comment: "" 
+    echo: FALSE
+    include: TRUE
+    warning: FALSE
+    message: FALSE
+    fig.pos: "H"
+    fig.path: "../output/figs/"
+    fig.height: 6
+    fig.width: 10
+    R.options:
+      knitr.graphics.auto_pdf: true
+---
+
+```{r}
+#| label: set-up-load-data
+options(knitr.kable.NA = "")
+
+# load packages, globals and project specific functions
+source(here::here("setup/setup.R"))
+
+# load data
+load(here("data/clean-data/rsdata.RData"))
+
+# load workbook to write tables to Excel
+wb <- loadWorkbook(here("output/tabs/tables.xlsx"))
+sheets <- names(wb)
+```           
+
+\newpage
+
+# Data
+
+## Data sources
+
+The Swedish Heart Failure Registry (SwedeHF) is an ongoing nationwide quality register started in 2000, 
+that includes in- and out-hospital patients with HF, regardless of EF and previous history of HF[@swedehf]. 
+Around 80 variables are recorded at 
+discharge from hospital or at the outpatient visit, i.e. index date, and 
+entered into an electronic database managed by the Uppsala Clinical Research 
+Center (Uppsala, Sweden). Up to April 2017 the only inclusion criterion was a 
+clinical diagnosis of HF, which was thereafter defined according to the ICD-10 
+codes I50.0, I50.1, I50.9, I42.0, I42.6, I42.7, I25.5, I11.0, I13.0, I13.2. 
+In 2022, 69 of 76 Swedish hospitals enrolled patients in SwedeHF, which had a 32% coverage of the prevalent HF population in Sweden[@annualreport]. 
+
+SwedeHF was linked with national Swedish registries (SHFDB version 4.2.1) through the 
+Swedish personal identity number (PIN)[@pin]: 
+
+- The National Prescribed Drug Register (The National Board of Health and Welfare) for information on medications
+- The National Patient Register (The National Board of Health and Welfare) for additional comorbidities and outcomes
+- The Cause of Death Register[@dors] (The National Board of Health and Welfare) for outcomes death
+- Longitudinal integrated database for health insurance and labour market studies (LISA)[@lisa] 
+and the Register of the Total Population (Statistics Sweden) for socio-economic factors
+
+## Ethics and informed consent
+
+The study was approved by the Swedish Ethical Review Authority. 
+Individual consent was not required, but patients were informed of entry into SwedeHF and able to opt‐out.
+
+## Inclusion/exclusion criteria
+
+```{r}
+#| label: tbl-flow
+#| tbl-cap: Flowchart
+#| tbl-pos: "H"
+
+flow <- flow %>%
+  mutate(
+    `Inclusion/exclusion criteria` = sanitize_text(`Inclusion/exclusion criteria`),
+    `Inclusion/exclusion criteria` = str_replace_all(`Inclusion/exclusion criteria`, fixed("$>$="), "$\\geq$"),
+    `Inclusion/exclusion criteria` = str_replace_all(`Inclusion/exclusion criteria`, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(flow, escape = F)
+```
+
+First patient included `r min(rsdata$shf_indexdtm)` and last patient included `r max(rsdata$shf_indexdtm)` 
+from approximately `r rsdata %>% distinct(shf_centre) %>% count() %>% pull(n)` enrolling centers. 
+
+## Definitions
+
+### Baseline
+
+Baseline is date of visits or date of discharge for the visit/hospitalization recorded in SwedeHF. 
+
+### Variable defintions
+
+{{< include src/vars_add.qmd >}}
+
+More information on data sources and definitions are found https://kiheartfailure.github.io/shfdb4/.
+
+### Medication
+
+```{r}
+#| label: tbl-meds
+#| tbl-cap: Medications including molecules
+#| tbl-pos: "H"
+
+tab <- lmvarsub %>%
+  group_by(med) %>%
+  mutate(
+    c = 1:n(),
+    med = if_else(c == 1, med, "")
+  ) %>%
+  ungroup() %>%
+  select(med, sub, atc)
+default_kable(tab, col.names = c("Medication", "Molecule", "ATC code"), scale_down = F)
+```
+
+#### Dose
+
+The dose taken by the patient was evaluated using the strength of the tablet prescribed x the number of pills the patients was prescribed to take each day. The latter is written in free text and an algorithm was derived to extract the dose prescribed. If there was no text or it was not possible to interpret, the number of tablets / day was assumed to be the mean number of pills taken per day for the posts with non-missing values with the same ATC code.
+
+#### Discontinuation 
+
+Discontinuation is defined as no prescription at 6 months and 1 year $\pm$ 2 months. Patients who do not have follow-up until 6 months + 2 months and 1 year + 2 months are excluded from the respective calculations. 
+
+# Results
+
+{{< include src/addtables/addtables.qmd >}}
