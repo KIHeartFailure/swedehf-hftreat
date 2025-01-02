@@ -33,12 +33,18 @@ tab2func <- function(groupvars, filt1 = 10, filt2, filt3 = NULL, text, data) {
   if (is.null(filt3)) {
     tab <- tab %>%
       filter(!!sym(groupvars[1]) %in% c(filt1) & !!sym(groupvars[2]) %in% c(filt2)) %>%
-      mutate(var = paste0("Patients treated by ", text[1], " ", !!sym(groupvars[1]), "mg + ", text[2], " ", !!sym(groupvars[2]), "mg**"))
+      mutate(var = paste0(
+        "Patients treated by ", text[1], " ", !!sym(groupvars[1]), "mg + ", text[2], " ", !!sym(groupvars[2]), "mg",
+        footnote_marker_alphabet(3, format = "latex")
+      ))
   }
   if (!is.null(filt3)) {
     tab <- tab %>%
       filter(!!sym(groupvars[1]) %in% c(filt1) & !!sym(groupvars[2]) %in% c(filt2) & !!sym(groupvars[3]) %in% c(filt3)) %>%
-      mutate(var = paste0("Patients treated by ", text[1], " ", !!sym(groupvars[1]), "mg + ", text[2], " ", !!sym(groupvars[2]), "mg + ", text[3], " ", !!sym(groupvars[3]), "mg**"))
+      mutate(var = paste0(
+        "Patients treated by ", text[1], " ", !!sym(groupvars[1]), "mg + ", text[2], " ", !!sym(groupvars[2]), "mg + ", text[3], " ", !!sym(groupvars[3]), "mg",
+        footnote_marker_alphabet(3, format = "latex")
+      ))
   }
   tab <- tab %>%
     select(var, out)
@@ -62,17 +68,18 @@ tab3func <- function(groupvars, xvar, filt = NULL, data, groupvartext) {
   }
 
   tab <- left_join(tab, lmvarsub, by = "atc") %>%
-    mutate(var = paste0("Patients treated by ", paste0(groupvartext, collapse = " + "), " + ", sub, "***")) %>%
+    mutate(var = paste0("Patients treated by ", paste0(groupvartext, collapse = " + "), " + ", sub, footnote_marker_alphabet(2, format = "latex"))) %>%
     select(var, out)
 }
 ```
+
 
 ```{r}
 #| label: tbl-dapagliflozine-eplerenone
 #| cache: true
 #| cache.comments: false
 #| dependson: addtabfunc
-#| tbl-cap: "Dapagliflozine/Eplerenone"
+#| tbl-cap: "Dapagliflozine/Eplerenone 2021-2023"
 #| tbl-pos: "H"
 
 tmp <- rsdata %>%
@@ -89,29 +96,47 @@ tmp <- rsdata %>%
       TRUE ~ 0
     )
   )
-tab1 <- tabfunc("medvar", "Patients treated by SGLT2i + MRA*", tmp)
-tab2 <- tabfunc("subvar", "Patients treated by Dapagliflozin + Eplerenone***", tmp %>% filter(medvar == 1))
+tab1 <- tabfunc("medvar", paste0("Patients treated by SGLT2i + MRA", footnote_marker_alphabet(1, format = "latex")), tmp)
+tab2 <- tabfunc("subvar", paste0("Patients treated by Dapagliflozin + Eplerenone", footnote_marker_alphabet(2, format = "latex")), tmp %>% filter(medvar == 1))
 tab3 <- tab2func(groupvars = c("dose_sos_lm_sglt2i", "dose_sos_lm_mra"), filt2 = c(25, 50), text = c("Dapagliflozin", "Eplerenone"), data = tmp %>% filter(subvar == 1))
 tab4 <- tab3func(groupvars = "sos_lm_sglt2i", xvar = "ATC_sos_lm_mra", data = tmp %>% filter(medvar == 1), groupvartext = "SGLT2i")
 tab5 <- tab3func(groupvars = "sos_lm_mra", xvar = "ATC_sos_lm_sglt2i", data = tmp %>% filter(medvar == 1), groupvartext = "MRA")
 
 taball <- bind_rows(tab1, tab2, tab3, tab4, tab5)
 
-colnames(taball) <- c("Description", "N (%)")
+
+footnotetext <- c(
+  "% within all patients 2021-2023",
+  "% within all patients with SGLT2i + MRA 2021-2023",
+  "% within all patients with Dapagliflozin + Eplerenone 2021-2023"
+)
+
+cn <- c("Description", "N (%)")
 
 tab_xls <- taball %>%
-  add_row(Description = "") %>%
-  add_row(Description = "* % within all patients 2021-2023") %>%
-  add_row(Description = "** % within all patients with Dapagliflozin + Eplerenone 2021-2023") %>%
-  add_row(Description = "*** % within all patients with SGLT2i + MRA 2021-2023")
+  mutate(
+    var = str_remove_all(var, "textsuperscript|\\}|\\{"),
+    var = str_replace_all(var, "\\\\", " ")
+  ) %>%
+  add_row(var = "") %>%
+  add_row(var = paste0("a ", footnotetext[1])) %>%
+  add_row(var = paste0("b ", footnotetext[2])) %>%
+  add_row(var = paste0("c ", footnotetext[3]))
 
 # excel
-make_one_xlsxsheet(tab_xls)
+make_one_xlsxsheet(tab_xls, colnames = cn)
+
+cn <- sanitize_text(cn)
 
 default_kable(taball,
-  escape = TRUE,
-  scale_down = F
-)
+  escape = FALSE,
+  scale_down = T,
+  col.names = cn
+) %>%
+  footnote(
+    alphabet = footnotetext,
+    threeparttable = T
+  )
 ```
 
 ```{r}
@@ -119,7 +144,7 @@ default_kable(taball,
 #| cache: true
 #| cache.comments: false
 #| dependson: addtabfunc
-#| tbl-cap: "Dapagliflozine/Bisoprolol"
+#| tbl-cap: "Dapagliflozine/Bisoprolol 2021-2023"
 #| tbl-pos: "H"
 
 tmp <- rsdata %>%
@@ -137,8 +162,8 @@ tmp <- rsdata %>%
     )
   )
 
-tab1 <- tabfunc("medvar", "Patients treated by SGLT2i + Beta-blocker*", tmp)
-tab2 <- tabfunc("subvar", "Patients treated by Dapagliflozin + Bisoprolol***", tmp %>% filter(medvar == 1))
+tab1 <- tabfunc("medvar", paste0("Patients treated by SGLT2i + Beta-blocker", footnote_marker_alphabet(1, format = "latex")), tmp)
+tab2 <- tabfunc("subvar", paste0("Patients treated by Dapagliflozin + Bisoprolol", footnote_marker_alphabet(2, format = "latex")), tmp %>% filter(medvar == 1))
 tab3 <- tab2func(
   groupvars = c("dose_sos_lm_sglt2i", "dose_sos_lm_bbl"), filt2 = c(1.25, 2.5, 3.75, 5, 7.5, 10), text = c("Dapagliflozin", "Bisoprolol"),
   data = tmp %>% filter(subvar == 1)
@@ -148,21 +173,38 @@ tab5 <- tab3func(groupvars = "sos_lm_bbl", xvar = "ATC_sos_lm_sglt2i", data = tm
 
 taball <- bind_rows(tab1, tab2, tab3, tab4, tab5)
 
-colnames(taball) <- c("Description", "N (%)")
+footnotetext <- c(
+  "% within all patients 2021-2023",
+  "% within all patients with SGLT2i + Beta-blocker 2021-2023",
+  "% within all patients with Dapagliflozin + Bisoprolol 2021-2023"
+)
+
+cn <- c("Description", "N (%)")
 
 tab_xls <- taball %>%
-  add_row(Description = "") %>%
-  add_row(Description = "* % within all patients 2021-2023") %>%
-  add_row(Description = "** % within all patients with Dapagliflozin + Bisoprolol 2021-2023") %>%
-  add_row(Description = "*** % within all patients with SGLT2i + Beta-blocker 2021-2023")
+  mutate(
+    var = str_remove_all(var, "textsuperscript|\\}|\\{"),
+    var = str_replace_all(var, "\\\\", " ")
+  ) %>%
+  add_row(var = "") %>%
+  add_row(var = paste0("a ", footnotetext[1])) %>%
+  add_row(var = paste0("b ", footnotetext[2])) %>%
+  add_row(var = paste0("c ", footnotetext[3]))
 
 # excel
-make_one_xlsxsheet(tab_xls)
+make_one_xlsxsheet(tab_xls, colnames = cn)
+
+cn <- sanitize_text(cn)
 
 default_kable(taball,
-  escape = TRUE,
-  scale_down = F
-)
+  escape = FALSE,
+  scale_down = T,
+  col.names = cn
+) %>%
+  footnote(
+    alphabet = footnotetext,
+    threeparttable = T
+  )
 ```
 
 ```{r}
@@ -170,7 +212,7 @@ default_kable(taball,
 #| cache: true
 #| cache.comments: false
 #| dependson: addtabfunc
-#| tbl-cap: "Dapagliflozine/Bisoprolol/Eplerenone"
+#| tbl-cap: "Dapagliflozine/Bisoprolol/Eplerenone 2021-2023"
 #| tbl-pos: "H"
 
 tmp <- rsdata %>%
@@ -189,8 +231,8 @@ tmp <- rsdata %>%
       TRUE ~ 0
     )
   )
-tab1 <- tabfunc("medvar", "Patients treated by SGLT2i + Beta-blocker + MRA*", tmp)
-tab2 <- tabfunc("subvar", "Patients treated by Dapagliflozin + Bisoprolol + Eplerenone***", tmp %>% filter(medvar == 1))
+tab1 <- tabfunc("medvar", paste0("Patients treated by SGLT2i + Beta-blocker + MRA", footnote_marker_alphabet(1, format = "latex")), tmp)
+tab2 <- tabfunc("subvar", paste0("Patients treated by Dapagliflozin + Bisoprolol + Eplerenone", footnote_marker_alphabet(2, format = "latex")), tmp %>% filter(medvar == 1))
 
 tab3 <- tab2func(
   groupvars = c("dose_sos_lm_sglt2i", "dose_sos_lm_bbl", "dose_sos_lm_mra"), filt2 = c(1.25, 2.5, 3.75, 5, 7.5, 10),
@@ -203,19 +245,36 @@ tab6 <- tab3func(groupvars = c("sos_lm_sglt2i", "sos_lm_bbl"), xvar = "ATC_sos_l
 
 taball <- bind_rows(tab1, tab2, tab3, tab4, tab5, tab6)
 
-colnames(taball) <- c("Description", "N (%)")
+footnotetext <- c(
+  "% within all patients 2021-2023",
+  "% within all patients with SGLT2i + Beta-blocker + MRA 2021-2023",
+  "% within all patients with Dapagliflozin + Bisoprolol + Eplerenone 2021-2023"
+)
+
+cn <- c("Description", "N (%)")
 
 tab_xls <- taball %>%
-  add_row(Description = "") %>%
-  add_row(Description = "* % within all patients 2021-2023") %>%
-  add_row(Description = "** % within all patients with Dapagliflozin + Bisoprolol + Eplerenone 2021-2023") %>%
-  add_row(Description = "*** % within all patients with SGLT2i + Beta-blocker + MRA 2021-2023")
+  mutate(
+    var = str_remove_all(var, "textsuperscript|\\}|\\{"),
+    var = str_replace_all(var, "\\\\", " ")
+  ) %>%
+  add_row(var = "") %>%
+  add_row(var = paste0("a ", footnotetext[1])) %>%
+  add_row(var = paste0("b ", footnotetext[2])) %>%
+  add_row(var = paste0("c ", footnotetext[3]))
 
 # excel
-make_one_xlsxsheet(tab_xls)
+make_one_xlsxsheet(tab_xls, colnames = cn)
+
+cn <- sanitize_text(cn)
 
 default_kable(taball,
-  escape = TRUE,
-  scale_down = F
-)
+  escape = FALSE,
+  scale_down = T,
+  col.names = cn
+) %>%
+  footnote(
+    alphabet = footnotetext,
+    threeparttable = T
+  )
 ```

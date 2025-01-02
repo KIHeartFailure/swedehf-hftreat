@@ -19,11 +19,10 @@ format:
     number-sections: true
     colorlinks: false
     keep-tex: false
-bibliography: static/referencesadd.bib
+bibliography: static/references.bib
 csl: static/bmj.csl
 link-citations: true
 link-bibliography: true
-nocite: '@*'
 knitr:
   opts_chunk: 
     dev: cairo_pdf
@@ -144,6 +143,15 @@ The dose taken by the patient was evaluated using the strength of the tablet pre
 
 Discontinuation is defined as no prescription at 6 months and 1 year $\pm$ 2 months. Patients who do not have follow-up until 6 months + 2 months and 1 year + 2 months are excluded from the respective calculations. 
 
+\clearpage
+
 # Results
 
 {{< include src/addtables/addtables.qmd >}}
+
+\clearpage
+
+# References
+
+::: {#refs}
+:::

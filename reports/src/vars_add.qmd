@@ -1,0 +1,109 @@
+```{r}
+#| label: tbl-vars
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Variable definitions and data sources"
+#| tbl-pos: "H"
+
+vars <- tibble(var = tabvars[str_detect(tabvars, "sos_lm_")]) %>%
+  mutate(
+    order = 1:n(),
+    # if recoding or categorizing will still get org label
+    var_tmp = str_replace_all(var, "(_cat2|_cat)", "")
+  ) %>%
+  group_by(var_tmp) %>%
+  slice(1) %>%
+  ungroup()
+
+# meta data
+meta <- lmvars %>%
+  rename(
+    Code = atc,
+    Variable = var
+  ) %>%
+  mutate(
+    Variable = paste0("sos_lm_", Variable),
+    Code = if_else(!is.na(Code), paste0("ATC:", str_replace_all(Code, "\\|", ",")), NA)
+  )
+
+vars <- left_join(vars, meta, by = c("var_tmp" = "Variable"))
+
+vars <- vars %>%
+  mutate(
+    Variable = coalesce(label, var_tmp),
+    # small fix
+    Variable = if_else(Variable == "sos_lm_rasiarni", "ACEi/ARB/ARNi", Variable)
+  )
+
+vars <- vars %>%
+  arrange(order) %>%
+  mutate(
+    order = 1:n(),
+    Code = str_trim(Code),
+    Code = str_replace_all(Code, ":", " "),
+    Code = str_replace_all(Code, ",", ", ")
+  )
+
+# data sources and footnotes
+vars <- vars %>%
+  mutate(
+    data3 = case_when(
+      str_detect(var, "sos_lm") & !is.na(Code) ~ paste0("NPDR: ", Code),
+      str_detect(var, "sos_lm") & is.na(Code) ~ "NPDR"
+    ),
+    footnote1 = if_else(str_detect(var, "sos_lm_"), footnote_marker_alphabet(1, format = "latex"), "")
+  ) %>%
+  unite(datasource, starts_with("data"), sep = "; ", na.rm = TRUE) %>%
+  mutate(
+    datasource = case_when(
+      var == "sos_lm_gdmt" ~ "NPDR: ACEi/ARB/ARNi, Beta-blocker, MRA, SGLT2i",
+      var == "sos_lm_rasiarni" ~ "NPDR: ACEi/ARB/ARNi",
+      var == "sos_lm_n_othermeds" ~ "NPDR: Number of unique ATC codes, excluding GDMT, on 2nd level (therapeutic subgroup)",
+      TRUE ~ datasource
+    )
+  ) %>%
+  unite(footnote, starts_with("footnote"), sep = "") %>%
+  arrange(order) %>%
+  mutate(datasource = paste0(datasource, footnote)) %>%
+  select(Variable, datasource)
+
+footnotetext <- c(
+  "Medications derived from prescriptions within 4 months prior to index up untill 14 days after index unless stated otherwise."
+)
+
+vars_xls <- vars %>%
+  mutate(
+    datasource = str_remove_all(datasource, "textsuperscript|\\}|\\{"),
+    datasource = str_replace_all(datasource, "\\\\", " ")
+  ) %>%
+  add_row(Variable = "") %>%
+  add_row(Variable = paste0("a ", footnotetext[1]))
+
+make_one_xlsxsheet(vars_xls,
+  colnames = c("Variable", "Data source")
+)
+
+vars <- vars %>%
+  mutate(
+    # so no probs
+    Variable = sanitize_text(Variable)
+  )
+
+default_kable(vars,
+  escape = FALSE,
+  longtable = TRUE,
+  font_size = 9,
+  col.names = c("Variable", "Data source")
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Abbreviations: NPDR, National Prescribed Drug Register"
+    ),
+    alphabet = footnotetext,
+    threeparttable = T
+  ) %>%
+  column_spec(1, width = "6cm") %>%
+  column_spec(2, width = "8cm")
+```
