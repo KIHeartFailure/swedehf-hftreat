@@ -175,7 +175,7 @@ basetabfunc_inner <- function(x, data, stratavar, catdig, contdig, overall) {
 contdig <- tibble(vars = c("shf_potassium"), contdig = 1)
 catdig <- 0
 
-basetabfunc <- function(data, novars = NULL, stratavar, overall = F, tabheader) {
+basetabfunc <- function(data, novars = NULL, stratavar, overall = F, tabheader, fs = 6, cs = "4cm") {
   tab <- data %>%
     count(!!sym(stratavar), .drop = F) %>%
     mutate(n = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")")) %>%
@@ -304,7 +304,7 @@ basetabfunc <- function(data, novars = NULL, stratavar, overall = F, tabheader) 
   names(header) <- c(" ", tabheader, " ")
 
   default_kable(tab,
-    font_size = 6,
+    font_size = fs,
     longtable = TRUE,
     escape = FALSE,
     col.names = cn
@@ -320,7 +320,7 @@ basetabfunc <- function(data, novars = NULL, stratavar, overall = F, tabheader) 
       alphabet = footnotetext,
       threeparttable = T
     ) %>%
-    column_spec(colspec, width = "4cm") %>%
+    column_spec(colspec, width = cs) %>%
     row_spec(1, hline_after = T)
 }
 ```
@@ -334,4 +334,18 @@ basetabfunc <- function(data, novars = NULL, stratavar, overall = F, tabheader) 
 #| tbl-pos: "H"
 
 basetabfunc(data = rsdata, stratavar = "sos_prevhfh3mo", novars = c("sos_prevhfh3mo"), overall = T, tabheader = "Previous HFH within 3 months")
+```
+
+```{r}
+#| label: tbl-base-nogdmt
+#| cache: true
+#| cache.comments: false
+#| dependson: basetabfunc
+#| tbl-cap: "Baseline characteristics by Guideline-directed medical therapy"
+#| tbl-pos: "H"
+
+basetabfunc(
+  data = rsdata, stratavar = "sos_lm_gdmt", novars = c("sos_lm_gdmt"), overall = T,
+  tabheader = "Guideline-directed medical therapy", cs = "2.5cm"
+)
 ```

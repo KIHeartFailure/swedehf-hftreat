@@ -58,7 +58,7 @@ sheets <- names(wb)
 
 # load pptx file with figs
 figs <- officer::read_pptx(path = here::here("output/figs/figs.pptx"))
-output <- F
+output <- T
 ```           
 
 \newpage
@@ -301,6 +301,8 @@ The adherence is calculated as $\ge$ 80% adherence during the first year after i
 The secondary objective 3 is to assess the association between the adherence to the four pillars and the risk of HF hospitalization according to patient’s status and patient’s clinical characteristics.
 
 The adherence is calculated as $\ge$ 80% adherence during the first year after index. The follow-up time is started 1 year after baseline when adherence is evaluated. All covariates are from baseline.
+
+The persistence is calculated during the first year after index. The follow-up time is started 14 months after baseline when persistence is evaluated. All covariates are from baseline.
 
 {{< include src/sec3.qmd >}}
 

@@ -23,6 +23,27 @@ rsdata <- create_sosvar(
   warnings = FALSE
 )
 
+# hosp after 426 days
+
+rsdata <- rsdata %>%
+  mutate(shf_indexdtmdisc = shf_indexdtm + 426)
+
+rsdata <- create_sosvar(
+  sosdata = patregrsdata %>% filter(sos_source == "sv"),
+  cohortdata = rsdata,
+  patid = lopnr,
+  indexdate = shf_indexdtmdisc,
+  sosdate = INDATUM,
+  diavar = HDIA,
+  type = "out",
+  name = "hosphfdisc",
+  diakod = global_hficd,
+  stoptime = global_followup,
+  censdate = censdtm,
+  valsclass = "fac",
+  warnings = FALSE
+)
+
 # Place of hospitalization --------------------------------------
 
 hfhospsos <- patregrsdata %>%

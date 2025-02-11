@@ -24,6 +24,29 @@ rsdata <- rsdata %>%
       is.na(sos_out_deathcvadhere) | is.na(sos_out_hosphfadhere) ~ NA_real_,
       sos_out_deathcvadhere == "Yes" | sos_out_hosphfadhere == "Yes" ~ 1,
       TRUE ~ 0
+    )),
+    sos_outtime_deathdisc = case_when(
+      sos_outtime_death <= 426 ~ NA_real_,
+      sos_outtime_death <= global_followup ~ sos_outtime_death - 426,
+      TRUE ~ global_followup
+    ),
+    sos_out_deathcvdisc = case_when(
+      is.na(sos_outtime_deathdisc) ~ NA_character_,
+      sos_outtime_death <= global_followup ~ as.character(sos_out_deathcv),
+      TRUE ~ "No"
+    ),
+    sos_outtime_hosphfdisc = case_when(
+      sos_outtime_hosphfdisc < 0 ~ NA_real_,
+      TRUE ~ sos_outtime_hosphfdisc
+    ),
+    sos_out_hosphfdisc = case_when(
+      is.na(sos_outtime_hosphfdisc) ~ NA_character_,
+      TRUE ~ as.character(sos_out_hosphfdisc)
+    ),
+    sos_out_deathcvhosphfdisc = ynfac(case_when(
+      is.na(sos_out_deathcvdisc) | is.na(sos_out_hosphfdisc) ~ NA_real_,
+      sos_out_deathcvdisc == "Yes" | sos_out_hosphfdisc == "Yes" ~ 1,
+      TRUE ~ 0
     ))
   )
 
@@ -211,7 +234,14 @@ rsdata <- rsdata %>%
       censdtm < shf_indexdtm + 426 ~ NA_real_,
       !is.na(dosefu_sos_lm_C07AB07_1yr) & !is.na(dosefu_sos_lm_A10BK01_1yr) ~ 1,
       TRUE ~ 0
-    )
+    ),
+    fu_sos_lm_bbl = factor(if_else(sos_lm_bbl == "No" | sos_outtime_death < 426, NA_real_, fu_sos_lm_bbl), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_mra = factor(if_else(sos_lm_mra == "No" | sos_outtime_death < 426, NA_real_, fu_sos_lm_mra), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_acei = factor(if_else(sos_lm_acei == "No" | sos_outtime_death < 426, NA_real_, fu_sos_lm_acei), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_arb = factor(if_else(sos_lm_arb == "No" | sos_outtime_death < 426, NA_real_, fu_sos_lm_arb), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_arni = factor(if_else(sos_lm_arni == "No" | sos_outtime_death < 426, NA_real_, fu_sos_lm_arni), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_rasiarni = factor(if_else(sos_lm_rasiarni == "No" | sos_outtime_death < 426, NA_real_, fu_sos_lm_rasiarni), levels = 0:1, labels = c("No", "Yes")),
+    fu_sos_lm_sglt2i = factor(if_else(sos_lm_sglt2i == "No" | sos_outtime_death < 426, NA_real_, fu_sos_lm_sglt2i), levels = 0:1, labels = c("No", "Yes"))
   )
 
 # income

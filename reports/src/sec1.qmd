@@ -6,7 +6,7 @@
 coxvars <- modvars
 coxvars[modvars %in% stratavars] <- paste0("strata(", coxvars[modvars %in% stratavars], ")")
 
-outcomesfunc <- function(data = rsdata, impdata = imprsdata, time, event, eventname, xvar = "sos_lm_gdmt",
+outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "sos_lm_gdmt",
                          novars = NULL) {
   coxvars <- setdiff(coxvars, novars)
 
@@ -40,52 +40,56 @@ outcomesfunc <- function(data = rsdata, impdata = imprsdata, time, event, eventn
     fn(r$upper, dig = 0), ")"
   )
 
-  ## 2 row - crude regression
-  out[2, 2] <- "Crude HR (95% CI), p-value"
-  mod <- summary(coxph(formula(paste0("Surv(", time, ",", event, "== 'Yes') ~ ", xvar)),
-    data = data
-  ))
+  if (all(ev$ev > 10)) {
+    ## 2 row - crude regression
+    out[2, 2] <- "Crude HR (95% CI), p-value"
+    mod <- summary(coxph(formula(paste0("Surv(", time, ",", event, "== 'Yes') ~ ", xvar)),
+      data = data
+    ))
 
-  out[2, 3:(nlevs + 2)] <- c(
-    "reference",
-    paste0(
-      fn(mod$conf.int[, "exp(coef)"], dig = 2),
-      " (", fn(mod$conf.int[, "lower .95"], dig = 2),
-      "-", fn(mod$conf.int[, "upper .95"], dig = 2), "), ",
-      fn(mod$coef[, "Pr(>|z|)"], dig = 3, p = TRUE)
+    out[2, 3:(nlevs + 2)] <- c(
+      "reference",
+      paste0(
+        fn(mod$conf.int[, "exp(coef)"], dig = 2),
+        " (", fn(mod$conf.int[, "lower .95"], dig = 2),
+        "-", fn(mod$conf.int[, "upper .95"], dig = 2), "), ",
+        fn(mod$coef[, "Pr(>|z|)"], dig = 3, p = TRUE)
+      )
     )
-  )
 
-  ## 3 row - adjusted regression
-  out[3, 2] <- "Adjusted HR (95% CI), p-value"
+    ## 3 row - adjusted regression
+    out[3, 2] <- "Adjusted HR (95% CI), p-value"
 
-  mod <- summary(pool(with(impdata, coxph(formula(paste0(
-    "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
-  ))))))
+    mod <- summary(pool(with(impdata, coxph(formula(paste0(
+      "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
+    ))))))
 
-  out[3, 3:(nlevs + 2)] <- c(
-    "reference",
-    paste0(
-      fn(exp(mod$estimate[1:(nlevs - 1)]), dig = 2),
-      " (", fn(exp(mod$estimate[1:(nlevs - 1)] - global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2),
-      "-", fn(exp(mod$estimate[1:(nlevs - 1)] + global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2), "), ",
-      fn(mod$p.value[1:(nlevs - 1)], dig = 3, p = TRUE)
+    out[3, 3:(nlevs + 2)] <- c(
+      "reference",
+      paste0(
+        fn(exp(mod$estimate[1:(nlevs - 1)]), dig = 2),
+        " (", fn(exp(mod$estimate[1:(nlevs - 1)] - global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2),
+        "-", fn(exp(mod$estimate[1:(nlevs - 1)] + global_z05 * mod$std.error[1:(nlevs - 1)]), dig = 2), "), ",
+        fn(mod$p.value[1:(nlevs - 1)], dig = 3, p = TRUE)
+      )
     )
-  )
-
+  } else {
+    out <- out[1, ]
+  }
   return(out)
 }
 
-outcomesfunc_outer <- function(byvar, lev, byvarname, novars) {
+outcomesfunc_outer <- function(data, impdata, byvar, lev, byvarname, novars) {
   if (is.null(byvar)) {
-    data <- rsdata
-    impdata <- imprsdata
+    data <- data
+    impdata <- impdata
   } else {
     novars <- c(byvar, novars)
 
-    data <- rsdata %>% filter(!!sym(byvar) == lev)
-    impdata <- mice::filter(imprsdata, rsdata %>%
+    impdata <- mice::filter(impdata, data %>%
       mutate(filt = !!sym(byvar) == lev) %>% pull(filt))
+
+    data <- data %>% filter(!!sym(byvar) == lev)
   }
 
   out1 <- outcomesfunc(
@@ -121,10 +125,10 @@ outcomesfunc_outer <- function(byvar, lev, byvarname, novars) {
     )
 }
 
-outcomesfunc_outer2 <- function(byvar, byvarname, novars = NULL) {
+outcomesfunc_outer2 <- function(data, impdata, byvar, byvarname, novars = NULL) {
   out <- lapply(levels(rsdata %>% pull(!!sym(byvar))),
     FUN = outcomesfunc_outer,
-    byvar = byvar, byvarname = byvarname, novars = novars
+    data = data, impdata = impdata, byvar = byvar, byvarname = byvarname, novars = novars
   )
 
   out <- bind_rows(out)
@@ -138,19 +142,40 @@ outcomesfunc_outer2 <- function(byvar, byvarname, novars = NULL) {
 #| dependson: outcomesfunc
 #| tbl-cap: "Association between therapy and outcomes"
 
-overall <- outcomesfunc_outer(byvar = NULL, lev = NULL, byvarname = "Overall", novars = NULL)
+overall <- outcomesfunc_outer(
+  data = rsdata, impdata = imprsdata,
+  byvar = NULL, lev = NULL, byvarname = "Overall", novars = NULL
+)
 
-sos_prevhfh3mo <- outcomesfunc_outer2(byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months")
+sos_prevhfh3mo <- outcomesfunc_outer2(
+  data = rsdata, impdata = imprsdata,
+  byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months"
+)
 
-age <- outcomesfunc_outer2(byvar = "shf_age_cat", byvarname = "Age")
+age <- outcomesfunc_outer2(
+  data = rsdata, impdata = imprsdata,
+  byvar = "shf_age_cat", byvarname = "Age"
+)
 
-sex <- outcomesfunc_outer2(byvar = "shf_sex", byvarname = "")
+sex <- outcomesfunc_outer2(
+  data = rsdata, impdata = imprsdata,
+  byvar = "shf_sex", byvarname = ""
+)
 
-egfr <- outcomesfunc_outer2(byvar = "shf_gfrckdepi_cat", byvarname = "eGFR")
+egfr <- outcomesfunc_outer2(
+  data = rsdata, impdata = imprsdata,
+  byvar = "shf_gfrckdepi_cat", byvarname = "eGFR"
+)
 
-cci <- outcomesfunc_outer2(byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index")
+cci <- outcomesfunc_outer2(
+  data = rsdata, impdata = imprsdata,
+  byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index"
+)
 
-meds <- outcomesfunc_outer2(byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications")
+meds <- outcomesfunc_outer2(
+  data = rsdata, impdata = imprsdata,
+  byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications"
+)
 
 outall <- bind_rows(overall, sos_prevhfh3mo, age, sex, egfr, cci, meds)
 
@@ -174,6 +199,87 @@ default_kable(outall,
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",
     general = c(
+      "Cox regressions are performed if the number of events > 10 in all groups.",
+      "Abbreviations: py, person-years; HR, Hazard Ratio; CVM, Cardiovascular mortality; HFH, Heart failure hospitalisation"
+    ),
+    threeparttable = T
+  )
+```
+
+```{r}
+#| label: tbl-sec1-2021-2023
+#| cache: true
+#| cache.comments: false
+#| dependson: outcomesfunc
+#| tbl-cap: "Association between therapy and outcomes 2021-2023"
+
+imprsdata20212023 <- mice::filter(imprsdata, rsdata$shf_indexyear_cat == "2021-2023")
+
+overall <- outcomesfunc_outer(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  impdata = imprsdata20212023,
+  byvar = NULL, lev = NULL, byvarname = "Overall", novars = NULL
+)
+
+sos_prevhfh3mo <- outcomesfunc_outer2(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  impdata = imprsdata20212023,
+  byvar = "sos_prevhfh3mo", byvarname = "HFH within 3 months"
+)
+
+age <- outcomesfunc_outer2(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  impdata = imprsdata20212023,
+  byvar = "shf_age_cat", byvarname = "Age"
+)
+
+sex <- outcomesfunc_outer2(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  impdata = imprsdata20212023,
+  byvar = "shf_sex", byvarname = ""
+)
+
+egfr <- outcomesfunc_outer2(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  impdata = imprsdata20212023,
+  byvar = "shf_gfrckdepi_cat", byvarname = "eGFR"
+)
+
+cci <- outcomesfunc_outer2(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  impdata = imprsdata20212023,
+  byvar = "sos_com_charlsonci_cat", byvarname = "Charlson Comorbidity Index"
+)
+
+meds <- outcomesfunc_outer2(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  impdata = imprsdata20212023,
+  byvar = "sos_lm_n_othermeds_cat", byvarname = "Other medications"
+)
+
+outall <- bind_rows(overall, sos_prevhfh3mo, age, sex, egfr, cci, meds)
+
+if (output) {
+  make_one_xlsxsheet(outall)
+}
+
+outall <- outall %>%
+  mutate(across(everything(), sanitize_text)) %>%
+  mutate(
+    Strata = str_replace_all(Strata, fixed("$>$="), "$\\geq$"),
+    Strata = str_replace_all(Strata, fixed("$<$="), "$\\leq$")
+  )
+
+default_kable(outall,
+  longtable = TRUE,
+  font_size = 4.5,
+  escape = FALSE
+) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Cox regressions are performed if the number of events > 10 in all groups.",
       "Abbreviations: py, person-years; HR, Hazard Ratio; CVM, Cardiovascular mortality; HFH, Heart failure hospitalisation"
     ),
     threeparttable = T
@@ -187,15 +293,15 @@ default_kable(outall,
 #| cache: true
 #| cache.comments: false
 
-kmfunc <- function(time, event, eventname) {
+kmfunc <- function(data = rsdata, time, event, eventname, stoptime = global_followup) {
   levs <- levels(rsdata %>% pull(sos_lm_gdmt))
   nlevs <- length(levs)
 
   fit <- survfit(formula(paste0("Surv(", time, ",", event, "== 'Yes') ~ sos_lm_gdmt")),
-    data = rsdata
+    data = data
   )
 
-  s <- summary(fit, times = seq(0, global_followup, 1), extend = T)
+  s <- summary(fit, times = seq(0, stoptime, 1), extend = T)
 
   plot_data <- tibble(
     "time" = s$time,
@@ -216,7 +322,7 @@ kmfunc <- function(time, event, eventname) {
     scale_color_manual(values = c(global_cols[1:5])) +
     # scale_x_continuous(breaks = seq(0, endfollow, 1), limits = c(0, endfollow), expand = c(0, 0)) +
     # scale_y_continuous(labels = scales::label_percent(suffix = ""), limits = c(0, 1), expand = c(0, 0)) +
-    scale_x_continuous(breaks = seq(0, global_followup_year, 1), limits = c(0, global_followup_year)) +
+    scale_x_continuous(breaks = seq(0, stoptime / 365, 1), limits = c(0, stoptime / 365)) +
     scale_y_continuous(labels = scales::label_percent(suffix = ""), limits = ylim) +
     theme_classic() +
     theme(
@@ -230,18 +336,20 @@ kmfunc <- function(time, event, eventname) {
   # n at risk
   table_data <- plot_data %>%
     filter(
-      time %in% c(seq(0, global_followup_year, 1) * 365)
+      time %in% c(seq(0, stoptime / 365, 1) * 365)
     ) %>%
     mutate(
       strata = fct_rev(strata)
     )
 
   t <- ggplot(table_data, aes(y = strata, x = time / 365.25)) +
-    geom_text(aes(label = n.risk), size = 6, fontface = "bold", colour = rep(global_cols[1:5], each = 4)) +
+    geom_text(aes(label = n.risk), size = 6, fontface = "bold", colour = rep(global_cols[1:5],
+      each = stoptime / 365 + 1
+    )) +
     # scale_x_continuous(breaks = seq(0, endfollow, 1), limits = c(0, endfollow), expand = c(0, 0)) +
     # scale_y_discrete(expand = c(0, 0)) +
-    scale_x_continuous(breaks = seq(0, global_followup_year, 1), limits = c(0, global_followup_year)) +
-    coord_cartesian(xlim = c(0, global_followup_year), clip = "off") +
+    scale_x_continuous(breaks = seq(0, stoptime / 365, 1), limits = c(0, stoptime / 365)) +
+    coord_cartesian(xlim = c(0, stoptime / 365), clip = "off") +
     labs(
       subtitle = "No. at risk"
     ) +
@@ -293,5 +401,41 @@ kmfunc(
   time = outvars$time[nr],
   event = outvars$var[nr],
   eventname = outvars$shortname[nr]
+)
+```
+
+```{r}
+#| label: fig-sec1-2021-2023
+#| cache: true
+#| cache.comments: false
+#| dependson: kmfunc
+#| fig-cap: "Association between therapy and outcomes - Cumulative incidence curves 2021-2023"
+#| fig-subcap: !expr outvars$name
+#| layout-ncol: 2
+#| layout-nrow: 2
+
+nr <- 1
+kmfunc(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  time = outvars$time[nr],
+  event = outvars$var[nr],
+  eventname = outvars$shortname[nr],
+  stoptime = 2 * 365
+)
+nr <- 2
+kmfunc(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  time = outvars$time[nr],
+  event = outvars$var[nr],
+  eventname = outvars$shortname[nr],
+  stoptime = 2 * 365
+)
+nr <- 3
+kmfunc(
+  data = rsdata %>% filter(shf_indexyear_cat == "2021-2023"),
+  time = outvars$time[nr],
+  event = outvars$var[nr],
+  eventname = outvars$shortname[nr],
+  stoptime = 2 * 365
 )
 ```
