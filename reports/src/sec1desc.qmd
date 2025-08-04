@@ -1,0 +1,46 @@
+```{r}
+#| label: tbl-sec1desc
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Association between therapy and outcomes overall"
+#| tbl-pos: "H"
+
+outcomesdescfunc <- function(time, event, eventname) {
+  # 1 row - incidence
+  ev <- rsdata %>%
+    summarise(
+      ev = sum(!!sym(event) == "Yes"),
+      s = sum(!!sym(time) / 365.25),
+      .groups = "drop"
+    )
+
+  r <- pois.exact(x = ev$ev, pt = ev$s / 100)
+
+  out <- c(eventname, paste0(
+    ev$ev, ", ",
+    fn(r$rate, dig = 0), " (",
+    fn(r$lower, dig = 0), "-",
+    fn(r$upper, dig = 0), ")"
+  ))
+}
+
+
+out1 <- outcomesdescfunc(
+  time = outvars$time[1],
+  event = outvars$var[1],
+  eventname = outvars$shortname[1]
+)
+out2 <- outcomesdescfunc(
+  time = outvars$time[2],
+  event = outvars$var[2],
+  eventname = outvars$shortname[2]
+)
+out3 <- outcomesdescfunc(
+  time = outvars$time[3],
+  event = outvars$var[3],
+  eventname = outvars$shortname[3]
+)
+outall <- rbind(out1, out2, out3)
+
+default_kable(outall, col.names = c("Outcome", "N events, incidence/100py (95% CI)"))
+```

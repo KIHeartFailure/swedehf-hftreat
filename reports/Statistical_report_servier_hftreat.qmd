@@ -280,6 +280,8 @@ The primary objective is to describe the frequency of the different co-prescript
 
 The secondary objective 1 is to assess the association between the number of drugs prescribed among the four pillars (mono, bi, tri or quadruple therapy) and the occurrence of hospitalization for HF and HF hospitalization + CV death according to patient’s status and patients’ clinical characteristics at index date.
 
+{{< include src/sec1desc.qmd >}}
+
 {{< include src/sec1.qmd >}}
 
 \clearpage
